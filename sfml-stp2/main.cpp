@@ -73,9 +73,12 @@ public:
         this->bomb = true;
     }
 
-    /*void draw(RenderWindow& window) {
+    void draw(RenderWindow& window) {
+        if (bomb) {
+            this->shape.setFillColor(Color::Red);
+        }
         window.draw(this->shape);
-    }*/
+    }
 
     RectangleShape getShape() const {
 		return this->shape;
@@ -86,6 +89,20 @@ public:
 class Board {
     int rows, columns, bombs, closedCells, remainingBombs = 0;
     vector<vector<Cell*>> cells;
+
+    void generateBombs() {
+        int bombsToAdd = bombs;
+        while (bombsToAdd > 0) {
+			int row = rand() % rows;
+			int column = rand() % columns;
+
+            if (!cells[row][column]->isBomb()) {
+				cells[row][column]->setBomb();
+				--bombsToAdd;
+			}
+		}
+	}
+
 public:
     Board(int r, int c, int bombs) :
         rows(r), columns(c), bombs(bombs), closedCells(r* c), remainingBombs(bombs){
@@ -97,6 +114,7 @@ public:
                 cells[i][j] = new Cell(i, j);
             }
         }
+        generateBombs();
     }
 
     Cell& getCell(int row, int column) const {
@@ -130,12 +148,12 @@ public:
     Board& getBoard() {
 		return this->board;
 	}
+
 };
 
 class Renderer {   
     Board& board;
     RenderWindow window;
-
 
     void handleEvents() {
         Event event;
@@ -169,7 +187,8 @@ class Renderer {
         // Draw each cell on the window
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
-                window.draw(board.getCell(i, j).getShape());
+                //window.draw(board.getCell(i, j).getShape());
+                board.getCell(i, j).draw(window);
             }
         }
         window.display();
@@ -192,7 +211,9 @@ public:
 
 int main() {
 
-    Board board = Board(3, 6, 5);
+    // Minesweeper game;
+    // game.generateBombs();
+    Board board = Board(9, 9, 10);
     Renderer renderer(board);
     renderer.run();
 
