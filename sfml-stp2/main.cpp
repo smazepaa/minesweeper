@@ -9,6 +9,7 @@ using namespace std;
 using namespace sf;
 
 float CELL_SIZE = 50;
+bool LOST = false;
 
 enum class Level
 {
@@ -41,6 +42,8 @@ public:
         this->opened = true;
         if (this->bomb) {
             this->shape.setFillColor(Color::Red);
+            LOST = true;
+            return;
         }
         else { 
             switch (neighborBombs) {
@@ -78,9 +81,7 @@ public:
             //Sprite icon_sprite;
 
             //Texture icons_texture;
-            //if (!icons_texture.loadFromFile("C:/Users/sofma/source/repos/minesweeper/sfml-stp2/x64/Debug/Icons16.png")) {
-            //    cerr << "Error loading Icons16.png" << endl;
-            //}
+            //icons_texture.loadFromFile("C:/Users/sofma/Downloads/Icons16.png");
 
             //icon_sprite.setTexture(icons_texture);
 
@@ -235,12 +236,14 @@ class Renderer {
     Minesweeper& game;
 
     void handleEvents() {
+
         Event event;
         while (window.pollEvent(event)) {
             if (event.type == Event::Closed) { // If the window is closed
                 window.close(); // Close the window
             }
             else if (event.type == Event::MouseButtonPressed) {
+                if (LOST) return;
                 // Get the position of the mouse
                 int x = event.mouseButton.x;
                 int y = event.mouseButton.y;
@@ -270,7 +273,30 @@ class Renderer {
                 board.getCell(i, j).draw(window);
             }
         }
+        // Draw the "You Lost" message
+        drawLostMessage();
+
         window.display();
+    }
+
+    void drawLostMessage() {
+        if (LOST) {
+            sf::Font font;
+            if (!font.loadFromFile("C:/Users/sofma/Downloads/Montserrat-Bold.ttf")) {
+                std::cerr << "Failed to load font" << std::endl;
+                return;
+            }
+
+            sf::Text lostText("You Lost", font, 60);
+            lostText.setFillColor(sf::Color::Red);
+            lostText.setStyle(sf::Text::Bold);
+
+            float centerX = window.getSize().x / 2.0f - lostText.getLocalBounds().width / 2.0f;
+            float centerY = window.getSize().y / 2.0f - lostText.getLocalBounds().height / 2.0f;
+            lostText.setPosition(centerX, centerY);
+
+            window.draw(lostText);
+        }
     }
 
 public:
@@ -279,19 +305,17 @@ public:
             board.getRows() * CELL_SIZE), "Minesweeper", 
             Style::Titlebar | Style::Close);
         window.setFramerateLimit(60);
-
     }
 
     void run() {
         while (window.isOpen()) {
-			handleEvents();
-			draw();
+            handleEvents();
+            draw();
 		}
 	}
 };
 
 int main() {
-
     Minesweeper game;
     Renderer renderer(game);
     renderer.run();
