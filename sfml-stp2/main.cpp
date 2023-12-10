@@ -1,8 +1,10 @@
+#include <SFML/Graphics.hpp>
 #include <vector>
 #include <string>
 #include <iostream>
 
 using namespace std;
+using namespace sf;
 
 enum class Level
 {
@@ -40,34 +42,35 @@ public:
     int getColumn() const {
         return this->column;
     }
+
+    void setBomb() {
+        this->bomb = true;
+	}
 };
 
 
 class Board {
     int rows, columns, bombs, closedCells, remainingBombs = 0;
-    Cell** cells;
+    vector<vector<Cell*>> cells;
 public:
     Board(int r, int c, int bombs) :
         rows(r), columns(c), bombs(bombs), closedCells(r* c), remainingBombs(bombs) {
-        cells = new Cell * [rows];
+        // Initialize the board with empty cells
+        cells = vector<vector<Cell*>>(rows, vector<Cell*>(columns));
+
         for (int i = 0; i < rows; ++i) {
-            cells[i] = new Cell[columns];
             for (int j = 0; j < columns; ++j) {
-                // Initialize each cell with row and column values
-                cells[i][j] = Cell(i, j);
-            }
-        }
+				cells[i][j] = new Cell(i, j);
+			}
+		}
     }
 
     ~Board() {
-        for (int i = 0; i < rows; ++i) {
-            delete[] cells[i];
-        }
-        delete[] cells;
+        // Delete the board
     }
 
     Cell& getCell(int row, int column) const {
-        return this->cells[row][column];
+        return *(this->cells[row][column]);
     }
 
     int getClosed() const {
@@ -85,6 +88,7 @@ public:
     int getColumns() const {
         return this->columns;
     }
+
 };
 
 
