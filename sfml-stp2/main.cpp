@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <cstdlib> // For rand() and srand()
+#include <ctime>   // For time()
 
 using namespace std;
 using namespace sf;
@@ -93,8 +95,11 @@ class Board {
     void generateBombs() {
         int bombsToAdd = bombs;
         while (bombsToAdd > 0) {
-			int row = rand() % rows;
-			int column = rand() % columns;
+            srand(static_cast<unsigned>(time(nullptr))); // Seed the random number generator
+
+            // Generate random row and column
+            int row = rand() % rows;
+            int column = rand() % columns;
 
             if (!cells[row][column]->isBomb()) {
 				cells[row][column]->setBomb();
