@@ -37,13 +37,58 @@ public:
         shape.setFillColor(Color(192, 192, 192));
     };
 
-    void open() {
+    void open(RenderWindow& window) {
         this->opened = true;
         if (this->bomb) {
             this->shape.setFillColor(Color::Red);
         }
         else { 
-            this->shape.setFillColor(Color::White);
+            switch (neighborBombs) {
+				case 0:
+					this->shape.setFillColor(Color::White);
+					break;
+				case 1:
+					this->shape.setFillColor(Color::Blue);
+					break;
+				case 2:
+					this->shape.setFillColor(Color::Green);
+					break;
+				case 3:
+					this->shape.setFillColor(Color::Red);
+					break;
+				case 4:
+					this->shape.setFillColor(Color::Magenta);
+					break;
+				case 5:
+					this->shape.setFillColor(Color::Cyan);
+					break;
+				case 6:
+					this->shape.setFillColor(Color::Yellow);
+					break;
+				case 7:
+					this->shape.setFillColor(Color(255, 128, 0));
+					break;
+				case 8:
+					this->shape.setFillColor(Color(128, 128, 128));
+					break;
+			}
+            //this->shape.setFillColor(Color::White);
+
+            ////The one thing I hate about SFML is that in order to draw an image, I have to make 2 objects
+            //Sprite icon_sprite;
+
+            //Texture icons_texture;
+            //if (!icons_texture.loadFromFile("C:/Users/sofma/source/repos/minesweeper/sfml-stp2/x64/Debug/Icons16.png")) {
+            //    cerr << "Error loading Icons16.png" << endl;
+            //}
+
+            //icon_sprite.setTexture(icons_texture);
+
+            //if (neighborBombs > 0) {
+            //    icon_sprite.setTextureRect(IntRect(16 * neighborBombs, 0, 16, 16));
+            //    icon_sprite.setPosition(row, column);
+            //    window.draw(icon_sprite);
+            //}
         }
     }
 
@@ -111,6 +156,26 @@ class Board {
 		}
 	}
 
+    void calculateNghbBombs() {
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < columns; ++j) {
+                if (!cells[i][j]->isBomb()) {
+                    int bombs = 0;
+                    for (int k = i - 1; k <= i + 1; ++k) {
+                        for (int l = j - 1; l <= j + 1; ++l) {
+                            if (k >= 0 && k < rows && l >= 0 && l < columns) {
+                                if (cells[k][l]->isBomb()) {
+                                    ++bombs;
+                                }
+                            }
+                        }
+                    }
+                    cells[i][j]->neighborBombs = bombs;
+                }
+            }
+        }
+    }
+
 public:
 
     Board(int r, int c, int bombs) :
@@ -124,6 +189,7 @@ public:
             }
         }
         generateBombs();
+        calculateNghbBombs();
     }
 
     Cell& getCell(int row, int column) const {
@@ -144,39 +210,6 @@ public:
 
     int getColumns() const {
         return this->columns;
-    }
-
-    void calculateNghbBombs() {
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < columns; ++j) {
-                if (cells[i][j]->isBomb()) {
-                    if (i > 0 && j > 0 && !cells[i - 1][j - 1]->isBomb()) {
-						cells[i - 1][j - 1]->neighborBombs++;
-					}
-                    if (i > 0 && !cells[i - 1][j]->isBomb()) {
-						cells[i - 1][j]->neighborBombs++;
-					}
-                    if (i > 0 && j < columns - 1 && !cells[i - 1][j + 1]->isBomb()) {
-						cells[i - 1][j + 1]->neighborBombs++;
-					}
-                    if (j > 0 && !cells[i][j - 1]->isBomb()) {
-						cells[i][j - 1]->neighborBombs++;
-					}
-                    if (j < columns - 1 && !cells[i][j + 1]->isBomb()) {
-						cells[i][j + 1]->neighborBombs++;
-					}
-                    if (i < rows - 1 && j > 0 && !cells[i + 1][j - 1]->isBomb()) {
-						cells[i + 1][j - 1]->neighborBombs++;
-					}
-                    if (i < rows - 1 && !cells[i + 1][j]->isBomb()) {
-						cells[i + 1][j]->neighborBombs++;
-					}
-                    if (i < rows - 1 && j < columns - 1 && !cells[i + 1][j + 1]->isBomb()) {
-						cells[i + 1][j + 1]->neighborBombs++;
-					}
-				}
-			}
-		}   
     }
 };
 
@@ -218,7 +251,7 @@ class Renderer {
 
                 if (event.mouseButton.button == Mouse::Left) {
                     // Open the cell
-                    board.getCell(row, column).open();
+                    board.getCell(row, column).open(window);
                 }
                 else if (event.mouseButton.button == Mouse::Right) {
                     // Toggle the flag of the cell
@@ -229,6 +262,7 @@ class Renderer {
     }
 
     void draw() {
+
         window.clear();
         // Draw each cell on the window
         for (int i = 0; i < board.getRows(); ++i) {
