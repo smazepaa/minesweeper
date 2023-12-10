@@ -42,23 +42,10 @@ public:
         if (this->bomb) {
             this->shape.setFillColor(Color::Red);
         }
-        else {
-            // Show the number of neighboring bombs if it's greater than 0
-            if (this->neighborBombs > 0) {
-                // Assuming you have a font loaded and set up for text display
-                Text text(std::to_string(this->neighborBombs), FONT, 20); // Change 20 to your desired font size
-                // Calculate the position to place the text at the center of the cell
-                float textX = this->column * CELL_SIZE + (CELL_SIZE / 2.0f) - text.getLocalBounds().width / 2.0f;
-                float textY = this->row * CELL_SIZE + (CELL_SIZE / 2.0f) - text.getLocalBounds().height / 2.0f;
-                text.setPosition(textX, textY);
-                window.draw(text);
-            }
-            else {
-                this->shape.setFillColor(Color::White);
-            }
+        else { 
+            this->shape.setFillColor(Color::White);
         }
     }
-
 
     void toggleFlag() {
         if (!this->opened) 
@@ -91,9 +78,9 @@ public:
     }
 
     void draw(RenderWindow& window) {
-        if (bomb) {
-            this->shape.setFillColor(Color::Red);
-        }
+        //if (bomb) {
+        //    this->shape.setFillColor(Color::Red);
+        //}
         window.draw(this->shape);
     }
 
@@ -252,95 +239,17 @@ class Renderer {
         window.display();
     }
 
-    void createButtons(float centerX, float centerY, Font font, string text) {
-
-		// Calculate button position
-		float buttonWidth = 220.0f;
-		float buttonHeight = 40.0f;
-		float buttonX = centerX - (buttonWidth / 2.0f);
-		float buttonY = centerY - (buttonHeight / 2.0f);
-
-		// Draw buttons or UI elements for level selection
-		RectangleShape easyButton(Vector2f(buttonWidth, buttonHeight));
-		easyButton.setPosition(buttonX, buttonY); // Position the button
-		easyButton.setFillColor(Color::Red);
-		window.draw(easyButton);
-
-		// Display text within the button
-		Text easyText(text, font, 30); // Text for "Easy" level
-		FloatRect textRect = easyText.getLocalBounds();
-
-		easyText.setOrigin(textRect.left + textRect.width / 2.0f, textRect.top + textRect.height / 2.0f);
-		easyText.setPosition(buttonX + (buttonWidth / 2.0f), buttonY + (buttonHeight / 2.0f)); // Center the text in the button
-		window.draw(easyText);
-		// Add similar code for other level buttons and texts
-	}
-
-    void levelSelection() {
-
-        static Font font;
-        if (!font.loadFromFile("C:/Users/sofma/Downloads/Montserrat-Bold.ttf")) {
-            cerr << "Failed to load font!" << endl;
-        }
-
-        float centerX = window.getSize().x / 2.0f;
-        float centerY = window.getSize().y / 2.0f;
-
-        window.clear();
-
-        Text title("Minesweeper", font, 40);
-        Text levelText("Select a level:", font, 28);
-        title.setPosition(centerX - title.getLocalBounds().getSize().x / 2, 20);
-        levelText.setPosition(centerX - levelText.getLocalBounds().getSize().x / 2, 70);
-        window.draw(title);
-        window.draw(levelText);
-
-        createButtons(centerX, centerY - 30, font, "Easy");
-        createButtons(centerX, centerY + 30, font, "Intermediate");
-        createButtons(centerX, centerY + 90, font, "Expert");
-
-        window.display();
-        handleLevelSelection();
-    }
-
-    void handleLevelSelection() {
-        Event event;
-        while (window.pollEvent(event)) {
-            if (event.type == Event::Closed) { // If the window is closed
-                window.close(); // Close the window
-            }
-            else if (event.type == Event::MouseButtonPressed) {
-                // Get the position of the mouse
-                int x = event.mouseButton.x;
-                int y = event.mouseButton.y;
-
-                // Get the center and size of the buttons
-                float centerX = window.getSize().x / 2.0f;
-                float centerY = window.getSize().y / 2.0f;
-                float buttonWidth = 100.0f;
-                float buttonHeight = 30.0f;
-
-                // Check if the mouse position is within the bounds of the Easy button
-                if (x >= centerX - (buttonWidth / 2.0f) && x <= centerX + (buttonWidth / 2.0f) &&
-                    y >= centerY - (buttonHeight / 2.0f) - 30 && y <= centerY + (buttonHeight / 2.0f) - 30) {
-                    game.getBoard() = Board(9, 9, 10); // Generate the board for "Easy" level
-                    return; // Exit the function after generating the board
-                }
-            };
-        }
-    }
-
-
 public:
     Renderer(Minesweeper& m) : game(m), board(m.getBoard()) {
-        window.create(VideoMode(board.getColumns() * CELL_SIZE, 
-            board.getRows() * CELL_SIZE), "Minesweeper");
+        window.create(sf::VideoMode(board.getColumns() * CELL_SIZE, 
+            board.getRows() * CELL_SIZE), "Minesweeper", 
+            Style::Titlebar | Style::Close);
         window.setFramerateLimit(60);
+
     }
 
     void run() {
         while (window.isOpen()) {
-            // levelSelection();
 			handleEvents();
 			draw();
 		}
