@@ -32,7 +32,7 @@ public:
 
     Cell(int r, int c) : row(r), column(c) {
         shape.setSize(Vector2f(CELL_SIZE, CELL_SIZE));
-        shape.setPosition(c * CELL_SIZE, r * CELL_SIZE);
+        shape.setPosition(c * CELL_SIZE, r * CELL_SIZE + 100);
         shape.setOutlineColor(Color::Black);
         shape.setOutlineThickness(1);
         shape.setFillColor(Color(192, 192, 192));
@@ -57,7 +57,7 @@ public:
 					this->shape.setFillColor(Color::Green);
 					break;
 				case 3:
-					this->shape.setFillColor(Color::Red);
+					this->shape.setFillColor(Color::Yellow);
 					break;
 				case 4:
 					this->shape.setFillColor(Color::Magenta);
@@ -66,7 +66,7 @@ public:
 					this->shape.setFillColor(Color::Cyan);
 					break;
 				case 6:
-					this->shape.setFillColor(Color::Yellow);
+                    this->shape.setFillColor(Color::Black);
 					break;
 				case 7:
 					this->shape.setFillColor(Color(255, 128, 0));
@@ -93,19 +93,44 @@ public:
         }
     }
 
-    void toggleFlag() {
-        if (!this->opened) 
-        {
-            if (this->flagged) 
-            {
-                this->shape.setFillColor(Color::Yellow);
+    void toggleFlag(RenderWindow& window) {
+        static Texture flag_texture; // Make the texture static to load it only once
+
+        if (flag_texture.getSize().x == 0) {
+            flag_texture.loadFromFile("C:/Users/sofma/Downloads/icons8-flag-48.png");
+        }
+
+        Sprite flag_sprite(flag_texture);
+        flag_sprite.setTextureRect(IntRect(0, 0, 48, 48));
+
+        if (!this->opened) {
+            if (this->flagged) {
+                // this->shape.setFillColor(Color::Yellow);
+                flag_sprite.setPosition(column * CELL_SIZE, row * CELL_SIZE); // Set position based on cell coordinates
+                window.draw(flag_sprite); // Draw the sprite on the window
             }
             else {
                 this->shape.setFillColor(Color(192, 192, 192));
             }
-            this->flagged = !flagged;
+            this->flagged = !this->flagged;
         }
     }
+
+    void drawFlag(RenderWindow& window) {
+        static Texture flag_texture; // Make the texture static to load it only once
+
+        if (flag_texture.getSize().x == 0) {
+            flag_texture.loadFromFile("C:/Users/sofma/Downloads/Icons16.png");
+        }
+
+        if (flagged && !opened) {
+            Sprite flag_sprite(flag_texture);
+            flag_sprite.setTextureRect(IntRect(16 * 11, 0, 16, 16));
+            flag_sprite.setPosition(column * CELL_SIZE, row * CELL_SIZE); // Set position based on cell coordinates
+            window.draw(flag_sprite); // Draw the flag sprite on the window
+        }
+    }
+
 
     bool isBomb() const {
         return this->bomb;
@@ -124,9 +149,9 @@ public:
     }
 
     void draw(RenderWindow& window) {
-        //if (bomb) {
-        //    this->shape.setFillColor(Color::Red);
-        //}
+        /*if (bomb) {
+            this->shape.setFillColor(Color::Red);
+        }*/
         window.draw(this->shape);
     }
 
@@ -258,21 +283,28 @@ class Renderer {
                 }
                 else if (event.mouseButton.button == Mouse::Right) {
                     // Toggle the flag of the cell
-                    board.getCell(row, column).toggleFlag();
+                    board.getCell(row, column).toggleFlag(window);
                 }
             };
         }
     }
 
     void draw() {
-
         window.clear();
-        // Draw each cell on the window
+
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
-                board.getCell(i, j).draw(window);
+                window.draw(board.getCell(i, j).getShape());
             }
         }
+
+        // Draw the flag sprites on top of the cells
+        for (int i = 0; i < board.getRows(); ++i) {
+            for (int j = 0; j < board.getColumns(); ++j) {
+                board.getCell(i, j).drawFlag(window);
+            }
+        }
+
         // Draw the "You Lost" message
         drawLostMessage();
 
@@ -281,15 +313,15 @@ class Renderer {
 
     void drawLostMessage() {
         if (LOST) {
-            sf::Font font;
+            Font font;
             if (!font.loadFromFile("C:/Users/sofma/Downloads/Montserrat-Bold.ttf")) {
-                std::cerr << "Failed to load font" << std::endl;
+                cerr << "Failed to load font" << endl;
                 return;
             }
 
-            sf::Text lostText("You Lost", font, 60);
-            lostText.setFillColor(sf::Color::Red);
-            lostText.setStyle(sf::Text::Bold);
+            Text lostText("You Lost", font, 60);
+            lostText.setFillColor(Color::Red);
+            lostText.setStyle(Text::Bold);
 
             float centerX = window.getSize().x / 2.0f - lostText.getLocalBounds().width / 2.0f;
             float centerY = window.getSize().y / 2.0f - lostText.getLocalBounds().height / 2.0f;
@@ -301,8 +333,10 @@ class Renderer {
 
 public:
     Renderer(Minesweeper& m) : game(m), board(m.getBoard()) {
-        window.create(sf::VideoMode(board.getColumns() * CELL_SIZE, 
-            board.getRows() * CELL_SIZE), "Minesweeper", 
+        int windowWidth = board.getColumns() * CELL_SIZE;
+        int windowHeight = board.getRows() * CELL_SIZE + CELL_SIZE * 2; // Additional space added above the board
+
+        window.create(sf::VideoMode(windowWidth, windowHeight), "Minesweeper",
             Style::Titlebar | Style::Close);
         window.setFramerateLimit(60);
     }
