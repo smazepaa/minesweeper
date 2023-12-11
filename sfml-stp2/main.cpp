@@ -119,6 +119,22 @@ public:
         }
     }
 
+    void drawBomb(RenderWindow& window) {
+		static Texture bomb_texture;
+        if (bomb_texture.getSize().x == 0) {
+			bomb_texture.loadFromFile("icons/bomb.png");
+		}
+
+        if (bomb) {
+			Sprite bomb_sprite(bomb_texture);
+			bomb_sprite.setTextureRect(IntRect(0, 0, 40, 40));
+			float sprite_size = 40;
+			float dif = (CELL_SIZE - sprite_size) / 2;
+			bomb_sprite.setPosition(column * CELL_SIZE + dif, row * CELL_SIZE + ADDITIONAL_SPACE + dif);
+			window.draw(bomb_sprite);
+		}
+	}
+
     bool isBomb() const {
         return this->bomb;
     }
@@ -268,7 +284,7 @@ class Minesweeper {
 	Level level;
 
 public:
-    Minesweeper() : board(9, 9, 10), level(Level::easy) {};
+    Minesweeper() : board(8, 8, 10), level(Level::easy) {};
     
     Board& getBoard() {
 		return this->board;
@@ -340,8 +356,10 @@ class Renderer {
 
                     if (board.getCell(i, j).isBomb()) {
 						board.getCell(i, j).draw(window);
+                        board.getCell(i, j).drawBomb(window);
 					}
 				}
+
             }
         }
         // Draw the "You Lost" message
@@ -356,6 +374,16 @@ class Renderer {
             if (!font.loadFromFile("C:/Users/sofma/Downloads/Montserrat-Bold.ttf")) {
                 cerr << "Failed to load font" << endl;
                 return;
+            }
+
+            for (int i = 0; i < board.getRows(); ++i) {
+                for (int j = 0; j < board.getColumns(); ++j) {
+
+                    if (board.getCell(i, j).isBomb()) {
+                        board.getCell(i, j).drawBomb(window);
+                    }
+
+                }
             }
 
             Text lostText("You Lost", font, 60);
@@ -375,7 +403,7 @@ public:
         int windowWidth = board.getColumns() * CELL_SIZE;
         int windowHeight = board.getRows() * CELL_SIZE + ADDITIONAL_SPACE; // Additional space added above the board
 
-        window.create(sf::VideoMode(windowWidth, windowHeight), "Minesweeper",
+        window.create(VideoMode(windowWidth, windowHeight), "Minesweeper",
             Style::Titlebar | Style::Close);
         window.setFramerateLimit(60);
     }
