@@ -28,7 +28,7 @@ class Cell {
 
 public:
 
-    int neighborBombs = 0;
+    int neighborBombs = INT16_MAX;
 
     Cell(){}
 
@@ -47,37 +47,7 @@ public:
             LOST = true;
             return;
         }
-        else { 
-            switch (neighborBombs) {
-				case 0:
-					this->shape.setFillColor(Color::White);
-					break;
-				case 1:
-					this->shape.setFillColor(Color::Blue);
-					break;
-				case 2:
-					this->shape.setFillColor(Color::Green);
-					break;
-				case 3:
-					this->shape.setFillColor(Color::Yellow);
-					break;
-				case 4:
-					this->shape.setFillColor(Color::Magenta);
-					break;
-				case 5:
-					this->shape.setFillColor(Color::Cyan);
-					break;
-				case 6:
-                    this->shape.setFillColor(Color::Black);
-					break;
-				case 7:
-					this->shape.setFillColor(Color(255, 128, 0));
-					break;
-				case 8:
-					this->shape.setFillColor(Color(128, 128, 128));
-					break;
-			}
-        }
+        this->shape.setFillColor(Color::White);
     }
 
     void toggleFlag() {
@@ -220,6 +190,30 @@ class Board {
         }
     }
 
+    void openNeighbors(int row, int col, RenderWindow& window) {
+        if (row < 0 || col < 0 || row >= rows || col >= columns) {
+            return; // Check for out-of-bounds
+        }
+
+        Cell& cell = *(cells[row][col]);
+        if (cell.isOpen() || cell.isFlagged()) {
+            return; // If cell is already open or flagged, return
+        }
+
+        cell.open(window);
+
+        // If the cell has no neighboring bombs, recursively open adjucent neighbors
+        if (cell.neighborBombs == 0) {
+            for (int k = row - 1; k <= row + 1; ++k) {
+                for (int l = col - 1; l <= col + 1; ++l) {
+                    if ((k != row || l != col) && k >= 0 && l >= 0 && k < rows && l < columns) {
+                        openNeighbors(k, l, window);
+                    }
+                }
+            }
+        }
+    }
+
 public:
 
     Board(int r, int c, int bombs) :
@@ -255,6 +249,13 @@ public:
     int getColumns() const {
         return this->columns;
     }
+
+    // Public function to trigger opening of a cell and its neighbors
+    void openNeighborCells(int row, int col, RenderWindow& window) {
+        openNeighbors(row, col, window);
+    }
+
+
 };
 
 class Minesweeper {
@@ -286,25 +287,23 @@ class Renderer {
             }
             else if (event.type == Event::MouseButtonPressed) {
                 if (LOST) return;
-                // Get the position of the mouse
                 int x = event.mouseButton.x;
                 int y = event.mouseButton.y - ADDITIONAL_SPACE;
 
                 // Ensure the click is within the board boundaries
                 if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
                     y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
-
-                    // Get the row and column of the cell
                     int row = y / CELL_SIZE;
-                    int column = x / CELL_SIZE;
+                    int col = x / CELL_SIZE;
 
                     if (event.mouseButton.button == Mouse::Left) {
-                        // Open the cell
-                        board.getCell(row, column).open(window);
+                        // Open the cell and its neighbors
+                        //board.getCell(row, col).open(window);
+                        board.openNeighborCells(row, col, window);
                     }
                     else if (event.mouseButton.button == Mouse::Right) {
                         // Toggle the flag of the cell
-                        board.getCell(row, column).toggleFlag();
+                        board.getCell(row, col).toggleFlag();
                     }
                 }
             }
@@ -315,10 +314,9 @@ class Renderer {
     void draw() {
         window.clear();
 
-        
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
-                window.draw(board.getCell(i, j).getShape());
+                board.getCell(i, j).draw(window);
             }
         }
 
