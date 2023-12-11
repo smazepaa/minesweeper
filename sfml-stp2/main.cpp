@@ -171,6 +171,7 @@ class Board {
     // generate bombs, excluding the first clicked cell and its neighbors
     void generateBombs(int clickedRow, int clickedCol) {
         int bombsToAdd = bombs;
+        srand(static_cast<unsigned>(time(nullptr))); // Seed the random number generator
         while (bombsToAdd > 0) {
             int row = rand() % rows;
             int column = rand() % columns;
@@ -267,6 +268,18 @@ public:
         }
     }
 
+    bool checkWinCondition() const {
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < columns; ++j) {
+                const Cell& cell = *(cells[i][j]);
+                if ((!cell.isOpen() && !cell.isBomb()) || (cell.isBomb() && !cell.isFlagged())) {
+                    return false; // If a non-bomb cell is closed or a bomb cell isn't flagged, game is not won
+                }
+            }
+        }
+        return true; // All non-bomb cells are opened, and all bomb cells are flagged
+    }
+
 };
 
 class Minesweeper {
@@ -297,7 +310,8 @@ class Renderer {
                 window.close();
             }
             else if (event.type == Event::MouseButtonPressed) {
-                if (LOST) return;
+                if (LOST || board.checkWinCondition()) return;
+
                 int x = event.mouseButton.x;
                 int y = event.mouseButton.y - ADDITIONAL_SPACE;
 
@@ -346,39 +360,61 @@ class Renderer {
             }
         }
 
-        drawLostMessage();
+        if (LOST) {
+            drawLostMessage();
+        }
+
+        if (board.checkWinCondition()) {
+			drawWonMessage();
+		}
 
         window.display();
     }
 
+    void drawWonMessage() {
+		Font font;
+        if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
+			cerr << "Failed to load font" << endl;
+			return;
+		}
+
+		Text wonText("You Won", font, 60);
+		wonText.setFillColor(Color::Green);
+		wonText.setStyle(Text::Bold);
+
+		float centerX = window.getSize().x / 2.0f - wonText.getLocalBounds().width / 2.0f;
+		float centerY = window.getSize().y / 2.0f - wonText.getLocalBounds().height / 2.0f;
+		wonText.setPosition(centerX, centerY);
+
+		window.draw(wonText);
+	}
+
     void drawLostMessage() {
-        if (LOST) {
-            Font font;
-            if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
-                cerr << "Failed to load font" << endl;
-                return;
-            }
-
-            for (int i = 0; i < board.getRows(); ++i) {
-                for (int j = 0; j < board.getColumns(); ++j) {
-
-                    if (board.getCell(i, j).isBomb()) {
-                        board.getCell(i, j).drawBomb(window);
-                    }
-
-                }
-            }
-
-            Text lostText("You Lost", font, 60);
-            lostText.setFillColor(Color::Red);
-            lostText.setStyle(Text::Bold);
-
-            float centerX = window.getSize().x / 2.0f - lostText.getLocalBounds().width / 2.0f;
-            float centerY = window.getSize().y / 2.0f - lostText.getLocalBounds().height / 2.0f;
-            lostText.setPosition(centerX, centerY);
-
-            window.draw(lostText);
+        Font font;
+        if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
+            cerr << "Failed to load font" << endl;
+            return;
         }
+
+        for (int i = 0; i < board.getRows(); ++i) {
+            for (int j = 0; j < board.getColumns(); ++j) {
+
+                if (board.getCell(i, j).isBomb() && !board.getCell(i, j).isFlagged()) {
+                    board.getCell(i, j).drawBomb(window);
+                }
+
+            }
+        }
+
+        Text lostText("You Lost", font, 60);
+        lostText.setFillColor(Color::Red);
+        lostText.setStyle(Text::Bold);
+
+        float centerX = window.getSize().x / 2.0f - lostText.getLocalBounds().width / 2.0f;
+        float centerY = window.getSize().y / 2.0f - lostText.getLocalBounds().height / 2.0f;
+        lostText.setPosition(centerX, centerY);
+
+        window.draw(lostText);
     }
 
 public:
