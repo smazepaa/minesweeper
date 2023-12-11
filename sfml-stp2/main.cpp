@@ -178,22 +178,22 @@ class Board {
     int rows, columns, bombs, closedCells, remainingBombs = 0;
     vector<vector<Cell*>> cells;
 
-    void generateBombs() {
+    bool firstMove = true; // Track if it's the first move
+
+    // Generate bombs, excluding the first clicked cell and its neighbors
+    void generateBombs(int clickedRow, int clickedCol) {
         int bombsToAdd = bombs;
         while (bombsToAdd > 0) {
-            // Seed the random number generator
-            srand(static_cast<unsigned>(time(nullptr))); 
-
-            // Generate random row and column
             int row = rand() % rows;
             int column = rand() % columns;
 
-            if (!cells[row][column]->isBomb()) {
-				cells[row][column]->setBomb();
-				--bombsToAdd;
-			}
-		}
-	}
+            if (!cells[row][column]->isBomb() &&
+                !(abs(row - clickedRow) <= 1 && abs(column - clickedCol) <= 1)) {
+                cells[row][column]->setBomb();
+                --bombsToAdd;
+            }
+        }
+    }
 
     void calculateNghbBombs() {
         for (int i = 0; i < rows; ++i) {
@@ -227,8 +227,6 @@ public:
                 cells[i][j] = new Cell(i, j);
             }
         }
-        generateBombs();
-        calculateNghbBombs();
     }
 
     Cell& getCell(int row, int column) const {
@@ -264,7 +262,14 @@ public:
 
         cell.open(window);
 
-        // If the cell has no neighboring bombs, recursively open adjucent neighbors
+        // If it's the first move, generate bombs after the first cell is opened
+        if (firstMove) {
+            firstMove = false;
+            generateBombs(row, col); // Generate bombs after the first cell is opened
+            calculateNghbBombs(); // Update neighbor bomb counts
+        }
+
+        // If the cell has no neighboring bombs, recursively open adjacent neighbors
         if (cell.neighborBombs == 0) {
             for (int k = row - 1; k <= row + 1; ++k) {
                 for (int l = col - 1; l <= col + 1; ++l) {
@@ -275,7 +280,6 @@ public:
             }
         }
     }
-
 
 };
 
@@ -371,7 +375,7 @@ class Renderer {
     void drawLostMessage() {
         if (LOST) {
             Font font;
-            if (!font.loadFromFile("C:/Users/sofma/Downloads/Montserrat-Bold.ttf")) {
+            if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
                 cerr << "Failed to load font" << endl;
                 return;
             }
