@@ -77,21 +77,6 @@ public:
 					this->shape.setFillColor(Color(128, 128, 128));
 					break;
 			}
-            //this->shape.setFillColor(Color::White);
-
-            ////The one thing I hate about SFML is that in order to draw an image, I have to make 2 objects
-            //Sprite icon_sprite;
-
-            //Texture icons_texture;
-            //icons_texture.loadFromFile("C:/Users/sofma/Downloads/Icons16.png");
-
-            //icon_sprite.setTexture(icons_texture);
-
-            //if (neighborBombs > 0) {
-            //    icon_sprite.setTextureRect(IntRect(16 * neighborBombs, 0, 16, 16));
-            //    icon_sprite.setPosition(row, column);
-            //    window.draw(icon_sprite);
-            //}
         }
     }
 
@@ -121,9 +106,56 @@ public:
         }
     }
 
+    void drawNumberBombs(RenderWindow& window) {
+        Texture number_texture;
+
+        switch (neighborBombs) {
+        case 1:
+            number_texture.loadFromFile("C:/Users/sofma/Downloads/one.png");
+            break;
+        case 2:
+            number_texture.loadFromFile("C:/Users/sofma/Downloads/two.png");
+            break;
+        case 3:
+            number_texture.loadFromFile("C:/Users/sofma/Downloads/three.png");
+            break;
+        case 4:
+            number_texture.loadFromFile("C:/Users/sofma/Downloads/four.png");
+            break;
+        case 5:
+            number_texture.loadFromFile("C:/Users/sofma/Downloads/five.png");
+            break;
+        case 6:
+            number_texture.loadFromFile("C:/Users/sofma/Downloads/six.png");
+            break;
+        case 7:
+            number_texture.loadFromFile("C:/Users/sofma/Downloads/seven.png");
+            break;
+        case 8:
+            number_texture.loadFromFile("C:/Users/sofma/Downloads/eight.png");
+            break;
+        }
+
+        this->shape.setFillColor(Color::White);
+        window.draw(this->shape);
+
+        if (opened) {
+            Sprite flag_sprite(number_texture);
+            flag_sprite.setTextureRect(IntRect(0, 0, 40, 40));
+            float sprite_size = 40;
+            float dif = (CELL_SIZE - sprite_size) / 2;
+            flag_sprite.setPosition(column * CELL_SIZE + dif, row * CELL_SIZE + ADDITIONAL_SPACE + dif);
+            window.draw(flag_sprite);
+        }
+    }
+
     bool isBomb() const {
         return this->bomb;
     }
+
+    bool isOpen() const {
+		return this->opened;
+	}
 
     int getRow() const {
         return this->row;
@@ -138,9 +170,6 @@ public:
     }
 
     void draw(RenderWindow& window) {
-        /*if (bomb) {
-            this->shape.setFillColor(Color::Red);
-        }*/
         window.draw(this->shape);
     }
 
@@ -286,19 +315,23 @@ class Renderer {
     void draw() {
         window.clear();
 
+        
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
                 window.draw(board.getCell(i, j).getShape());
             }
         }
 
-        // Draw the flag sprites on top of the cells
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
+
                 if (board.getCell(i, j).isFlagged()) {
                     board.getCell(i, j).drawFlag(window);
                 }
-                
+
+                else if (board.getCell(i, j).isOpen()) {
+					board.getCell(i, j).drawNumberBombs(window);
+				}
             }
         }
         // Draw the "You Lost" message
