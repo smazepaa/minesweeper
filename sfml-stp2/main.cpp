@@ -303,6 +303,10 @@ class Renderer {
     RenderWindow window;
     Minesweeper& game;
 
+    bool suspiciousMode = false;
+    bool carefulMode = false;
+    int row, col;
+
     void handleEvents() {
         Event event;
         while (window.pollEvent(event)) {
@@ -315,28 +319,63 @@ class Renderer {
                 int x = event.mouseButton.x;
                 int y = event.mouseButton.y - ADDITIONAL_SPACE;
 
+                // Calculate smiley face boundaries
+                FloatRect smileyBounds(
+                    board.getColumns() * CELL_SIZE / 2 - 30,
+                    (ADDITIONAL_SPACE - 60) / 2,
+                    60, 60);
+
+                // Check if click is within smiley face boundaries
+                if (smileyBounds.contains(x, y + ADDITIONAL_SPACE)) {
+                    restartGame();
+                    return;
+                }
+
                 // ensure the click is within the board boundaries
                 if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
                     y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
-                    int row = y / CELL_SIZE;
-                    int col = x / CELL_SIZE;
+                    row = y / CELL_SIZE;
+                    col = x / CELL_SIZE;
+
+                    
 
                     if (event.mouseButton.button == Mouse::Left) {
-                        if (!board.getCell(row, col).isFlagged()) {
-                            // open the cell and its neighbors
-                            board.openCells(row, col, window);
-                        }
+                        carefulMode = true;
                     }
                     else if (event.mouseButton.button == Mouse::Right) {
-                        board.getCell(row, col).toggleFlag();
+                        suspiciousMode = true;
                     }
+
                 }
             }
+            else if (event.type == Event::MouseButtonReleased)
+            {
+                if (event.mouseButton.button == Mouse::Left) {
+                    carefulMode = false;
+                    if (row < 0 || col < 0 || row >= board.getRows() || col >= board.getColumns()) {
+                        return; // Check for out-of-bounds
+                    }
+                    else if (!board.getCell(row, col).isFlagged()) {
+                        // open the cell and its neighbors
+                        board.openCells(row, col, window);
+                    }
+                }
+                if (event.mouseButton.button == Mouse::Right) {
+					suspiciousMode = false;
+
+                    if (row < 0 || col < 0 || row >= board.getRows() || col >= board.getColumns()) {
+                        return; // Check for out-of-bounds
+                    }
+                    board.getCell(row, col).toggleFlag();
+				}
+			}
         }
     }
 
     void draw() {
         window.clear();
+
+        drawBob();
 
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
@@ -415,6 +454,45 @@ class Renderer {
         lostText.setPosition(centerX, centerY);
 
         window.draw(lostText);
+    }
+
+    void drawBob() {
+        // draw Bob face based on game state
+        Texture smiley_texture;
+        Event event{};
+        if (LOST) {
+            smiley_texture.loadFromFile("icons/loser.png");
+        }
+        else if (board.checkWinCondition()) {
+			smiley_texture.loadFromFile("icons/winner.png");
+		}
+        else if (suspiciousMode) {
+            smiley_texture.loadFromFile("icons/suspicious.png");
+        }
+        else if (carefulMode) {
+			smiley_texture.loadFromFile("icons/careful.png");
+		}
+        else {
+            smiley_texture.loadFromFile("icons/smiling.png");
+        }
+
+        Sprite smiley(smiley_texture);
+        smiley.setTextureRect(IntRect(0, 0, 60, 60));
+        float smiley_size = 60;
+        float dif = (ADDITIONAL_SPACE - smiley_size) / 2;
+        smiley.setPosition(board.getColumns() * CELL_SIZE / 2 - smiley_size / 2, dif);
+        window.draw(smiley);
+    }
+
+    void restartGame() {
+        window.clear();
+        game = Minesweeper(); // Create a new Minesweeper instance
+        board = game.getBoard(); // Update the board reference
+        LOST = false; // Reset game state variables
+        suspiciousMode = false;
+        carefulMode = false;
+        row = -1;
+        col = -1;
     }
 
 public:
