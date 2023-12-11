@@ -10,6 +10,7 @@ using namespace sf;
 
 float CELL_SIZE = 50;
 bool LOST = false;
+float ADDITIONAL_SPACE = 100;
 
 enum class Level
 {
@@ -21,7 +22,8 @@ enum class Level
 class Cell {
     int row, column = 0;
     bool bomb = false;
-    bool flagged, opened = false;
+    bool flagged = false;
+    bool opened = false;
     RectangleShape shape;
 
 public:
@@ -32,7 +34,7 @@ public:
 
     Cell(int r, int c) : row(r), column(c) {
         shape.setSize(Vector2f(CELL_SIZE, CELL_SIZE));
-        shape.setPosition(c * CELL_SIZE, r * CELL_SIZE + 100);
+        shape.setPosition(c * CELL_SIZE, r * CELL_SIZE + ADDITIONAL_SPACE);
         shape.setOutlineColor(Color::Black);
         shape.setOutlineThickness(1);
         shape.setFillColor(Color(192, 192, 192));
@@ -93,44 +95,31 @@ public:
         }
     }
 
-    void toggleFlag(RenderWindow& window) {
-        static Texture flag_texture; // Make the texture static to load it only once
-
-        if (flag_texture.getSize().x == 0) {
-            flag_texture.loadFromFile("C:/Users/sofma/Downloads/icons8-flag-48.png");
-        }
-
-        Sprite flag_sprite(flag_texture);
-        flag_sprite.setTextureRect(IntRect(0, 0, 48, 48));
-
+    void toggleFlag() {
         if (!this->opened) {
-            if (this->flagged) {
-                // this->shape.setFillColor(Color::Yellow);
-                flag_sprite.setPosition(column * CELL_SIZE, row * CELL_SIZE); // Set position based on cell coordinates
-                window.draw(flag_sprite); // Draw the sprite on the window
-            }
-            else {
-                this->shape.setFillColor(Color(192, 192, 192));
-            }
             this->flagged = !this->flagged;
         }
     }
 
-    void drawFlag(RenderWindow& window) {
-        static Texture flag_texture; // Make the texture static to load it only once
+    bool isFlagged() const {
+		return this->flagged;
+	}
 
+    void drawFlag(RenderWindow& window) {
+        static Texture flag_texture;
         if (flag_texture.getSize().x == 0) {
-            flag_texture.loadFromFile("C:/Users/sofma/Downloads/Icons16.png");
+            flag_texture.loadFromFile("C:/Users/sofma/Downloads/red-flag.png");
         }
 
         if (flagged && !opened) {
             Sprite flag_sprite(flag_texture);
-            flag_sprite.setTextureRect(IntRect(16 * 11, 0, 16, 16));
-            flag_sprite.setPosition(column * CELL_SIZE, row * CELL_SIZE); // Set position based on cell coordinates
-            window.draw(flag_sprite); // Draw the flag sprite on the window
+            flag_sprite.setTextureRect(IntRect(0, 0, 40, 40));
+            float sprite_size = 40;
+            float dif = (CELL_SIZE - sprite_size) / 2;
+            flag_sprite.setPosition(column * CELL_SIZE + dif, row * CELL_SIZE + ADDITIONAL_SPACE + dif);
+            window.draw(flag_sprite);
         }
     }
-
 
     bool isBomb() const {
         return this->bomb;
@@ -261,7 +250,6 @@ class Renderer {
     Minesweeper& game;
 
     void handleEvents() {
-
         Event event;
         while (window.pollEvent(event)) {
             if (event.type == Event::Closed) { // If the window is closed
@@ -271,23 +259,29 @@ class Renderer {
                 if (LOST) return;
                 // Get the position of the mouse
                 int x = event.mouseButton.x;
-                int y = event.mouseButton.y;
+                int y = event.mouseButton.y - ADDITIONAL_SPACE;
 
-                // Get the row and column of the cell
-                int row = y / CELL_SIZE;
-                int column = x / CELL_SIZE;
+                // Ensure the click is within the board boundaries
+                if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
+                    y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
 
-                if (event.mouseButton.button == Mouse::Left) {
-                    // Open the cell
-                    board.getCell(row, column).open(window);
+                    // Get the row and column of the cell
+                    int row = y / CELL_SIZE;
+                    int column = x / CELL_SIZE;
+
+                    if (event.mouseButton.button == Mouse::Left) {
+                        // Open the cell
+                        board.getCell(row, column).open(window);
+                    }
+                    else if (event.mouseButton.button == Mouse::Right) {
+                        // Toggle the flag of the cell
+                        board.getCell(row, column).toggleFlag();
+                    }
                 }
-                else if (event.mouseButton.button == Mouse::Right) {
-                    // Toggle the flag of the cell
-                    board.getCell(row, column).toggleFlag(window);
-                }
-            };
+            }
         }
     }
+
 
     void draw() {
         window.clear();
@@ -301,10 +295,12 @@ class Renderer {
         // Draw the flag sprites on top of the cells
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
-                board.getCell(i, j).drawFlag(window);
+                if (board.getCell(i, j).isFlagged()) {
+                    board.getCell(i, j).drawFlag(window);
+                }
+                
             }
         }
-
         // Draw the "You Lost" message
         drawLostMessage();
 
@@ -334,7 +330,7 @@ class Renderer {
 public:
     Renderer(Minesweeper& m) : game(m), board(m.getBoard()) {
         int windowWidth = board.getColumns() * CELL_SIZE;
-        int windowHeight = board.getRows() * CELL_SIZE + CELL_SIZE * 2; // Additional space added above the board
+        int windowHeight = board.getRows() * CELL_SIZE + ADDITIONAL_SPACE; // Additional space added above the board
 
         window.create(sf::VideoMode(windowWidth, windowHeight), "Minesweeper",
             Style::Titlebar | Style::Close);
