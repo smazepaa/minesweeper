@@ -140,6 +140,15 @@ public:
     }
 
     void draw(RenderWindow& window) {
+        if (opened && bomb) {
+            this->shape.setFillColor(Color::Red);
+        }
+        else if (opened) {
+			this->shape.setFillColor(Color::White);
+		}
+        else {
+			this->shape.setFillColor(Color(192, 192, 192));
+		}
         window.draw(this->shape);
     }
 
@@ -190,30 +199,6 @@ class Board {
         }
     }
 
-    void openNeighbors(int row, int col, RenderWindow& window) {
-        if (row < 0 || col < 0 || row >= rows || col >= columns) {
-            return; // Check for out-of-bounds
-        }
-
-        Cell& cell = *(cells[row][col]);
-        if (cell.isOpen() || cell.isFlagged()) {
-            return; // If cell is already open or flagged, return
-        }
-
-        cell.open(window);
-
-        // If the cell has no neighboring bombs, recursively open adjucent neighbors
-        if (cell.neighborBombs == 0) {
-            for (int k = row - 1; k <= row + 1; ++k) {
-                for (int l = col - 1; l <= col + 1; ++l) {
-                    if ((k != row || l != col) && k >= 0 && l >= 0 && k < rows && l < columns) {
-                        openNeighbors(k, l, window);
-                    }
-                }
-            }
-        }
-    }
-
 public:
 
     Board(int r, int c, int bombs) :
@@ -252,7 +237,27 @@ public:
 
     // Public function to trigger opening of a cell and its neighbors
     void openNeighborCells(int row, int col, RenderWindow& window) {
-        openNeighbors(row, col, window);
+        if (row < 0 || col < 0 || row >= rows || col >= columns) {
+            return; // Check for out-of-bounds
+        }
+
+        Cell& cell = *(cells[row][col]);
+        if (cell.isOpen() || cell.isFlagged()) {
+            return; // If cell is already open or flagged, return
+        }
+
+        cell.open(window);
+
+        // If the cell has no neighboring bombs, recursively open adjucent neighbors
+        if (cell.neighborBombs == 0) {
+            for (int k = row - 1; k <= row + 1; ++k) {
+                for (int l = col - 1; l <= col + 1; ++l) {
+                    if ((k != row || l != col) && k >= 0 && l >= 0 && k < rows && l < columns) {
+                        openNeighborCells(k, l, window);
+                    }
+                }
+            }
+        }
     }
 
 
@@ -299,7 +304,10 @@ class Renderer {
                     if (event.mouseButton.button == Mouse::Left) {
                         // Open the cell and its neighbors
                         //board.getCell(row, col).open(window);
-                        board.openNeighborCells(row, col, window);
+                        if (!board.getCell(row, col).isFlagged()) {
+                            board.openNeighborCells(row, col, window);
+                        }
+                        
                     }
                     else if (event.mouseButton.button == Mouse::Right) {
                         // Toggle the flag of the cell
@@ -329,6 +337,10 @@ class Renderer {
 
                 else if (board.getCell(i, j).isOpen()) {
 					board.getCell(i, j).drawNumberBombs(window);
+
+                    if (board.getCell(i, j).isBomb()) {
+						board.getCell(i, j).draw(window);
+					}
 				}
             }
         }
