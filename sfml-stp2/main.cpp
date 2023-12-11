@@ -63,7 +63,7 @@ public:
     void drawFlag(RenderWindow& window) {
         static Texture flag_texture;
         if (flag_texture.getSize().x == 0) {
-            flag_texture.loadFromFile("C:/Users/sofma/Downloads/red-flag.png");
+            flag_texture.loadFromFile("icons/red-flag.png");
         }
 
         if (flagged && !opened) {
@@ -81,28 +81,28 @@ public:
 
         switch (neighborBombs) {
         case 1:
-            number_texture.loadFromFile("C:/Users/sofma/Downloads/one.png");
+            number_texture.loadFromFile("icons/one.png");
             break;
         case 2:
-            number_texture.loadFromFile("C:/Users/sofma/Downloads/two.png");
+            number_texture.loadFromFile("icons/two.png");
             break;
         case 3:
-            number_texture.loadFromFile("C:/Users/sofma/Downloads/three.png");
+            number_texture.loadFromFile("icons/three.png");
             break;
         case 4:
-            number_texture.loadFromFile("C:/Users/sofma/Downloads/four.png");
+            number_texture.loadFromFile("icons/four.png");
             break;
         case 5:
-            number_texture.loadFromFile("C:/Users/sofma/Downloads/five.png");
+            number_texture.loadFromFile("icons/five.png");
             break;
         case 6:
-            number_texture.loadFromFile("C:/Users/sofma/Downloads/six.png");
+            number_texture.loadFromFile("icons/six.png");
             break;
         case 7:
-            number_texture.loadFromFile("C:/Users/sofma/Downloads/seven.png");
+            number_texture.loadFromFile("icons/seven.png");
             break;
         case 8:
-            number_texture.loadFromFile("C:/Users/sofma/Downloads/eight.png");
+            number_texture.loadFromFile("icons/eight.png");
             break;
         }
 
