@@ -11,6 +11,9 @@ using namespace sf;
 float CELL_SIZE = 50;
 bool LOST = false;
 float ADDITIONAL_SPACE = 100;
+int REMAINING_BOMBS = 0;
+
+
 
 enum class Level
 {
@@ -52,7 +55,15 @@ public:
 
     void toggleFlag() {
         if (!this->opened) {
-            this->flagged = !this->flagged;
+            
+            if (!this->flagged) {
+                this->flagged = true;
+                REMAINING_BOMBS--;
+            }
+            else {
+                this->flagged = false;
+                REMAINING_BOMBS++;
+            }
         }
     }
 
@@ -209,6 +220,7 @@ public:
     Board(int r, int c, int bombs) :
         rows(r), columns(c), bombs(bombs), closedCells(r* c), remainingBombs(bombs){
         // Initialize the board with empty cells
+        REMAINING_BOMBS = bombs;
         cells = vector<vector<Cell*>>(rows, vector<Cell*>(columns));
 
         for (int i = 0; i < rows; ++i) {
@@ -229,6 +241,10 @@ public:
     int getRemainedBombs() const {
         return this->remainingBombs;
     }
+
+    void decrementRemainedBombs() {
+		--this->remainingBombs;
+	}
 
     int getRows() const {
         return this->rows;
@@ -287,7 +303,7 @@ class Minesweeper {
 	Level level;
 
 public:
-    Minesweeper() : board(8, 8, 10), level(Level::easy) {};
+    Minesweeper(): board(8, 8, 10), level(Level::easy) {};
     
     Board& getBoard() {
 		return this->board;
@@ -302,18 +318,36 @@ class Renderer {
     Board& board;
     RenderWindow window;
     Minesweeper& game;
+    Font font;
+    Clock timer; // Timer to keep track of elapsed time
 
+    int seconds = 0; // Elapsed time in seconds
     bool suspiciousMode = false;
     bool carefulMode = false;
     int row, col;
+    bool firstClick = true;
+
+    void loadFont() {
+        // Load font
+        if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
+            cerr << "Failed to load font" << endl;
+        }
+    }
 
     void handleEvents() {
         Event event;
+        
         while (window.pollEvent(event)) {
             if (event.type == Event::Closed) {
                 window.close();
             }
             else if (event.type == Event::MouseButtonPressed) {
+
+                if (firstClick && !LOST && !board.checkWinCondition()) {
+                    // Start the timer on the first valid click
+                    timer.restart();
+                    firstClick = false; // Set the flag to false after the first click
+                }
 
                 int x = event.mouseButton.x;
                 int y = event.mouseButton.y - ADDITIONAL_SPACE;
@@ -330,15 +364,18 @@ class Renderer {
                     return;
                 }
 
-                if (LOST || board.checkWinCondition()) return;
+                if (LOST || board.checkWinCondition()) {
+                    timer.restart();
+                    firstClick = true;
+                    //seconds = 0;
+                    return;
+                }
 
                 // ensure the click is within the board boundaries
                 if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
                     y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
                     row = y / CELL_SIZE;
                     col = x / CELL_SIZE;
-
-                    
 
                     if (event.mouseButton.button == Mouse::Left) {
                         carefulMode = true;
@@ -373,10 +410,52 @@ class Renderer {
         }
     }
 
+    void drawTimer() {
+        // Calculate elapsed time in seconds
+        if (firstClick) {
+            seconds = 0;
+        }
+        else {
+            seconds = static_cast<int>(timer.getElapsedTime().asSeconds());
+            firstClick = false;
+        }
+        
+        // Create a text object to display the timer
+        Text timerText("Time: " + to_string(seconds) + "s", font, 20);
+        timerText.setFillColor(Color::White);
+        timerText.setStyle(Text::Bold);
+
+        // Position the timer text
+        float centerX = window.getSize().x / 2.0f - timerText.getLocalBounds().width / 2.0f;
+        timerText.setPosition(10, (ADDITIONAL_SPACE - timerText.getLocalBounds().height) / 2);
+
+        window.draw(timerText);
+    }
+
+    void drawRemainingBombs() {
+        // Display the number of remaining bombs
+        Text bombsText("Bombs: " + to_string(REMAINING_BOMBS), font, 20);
+        bombsText.setFillColor(Color::White);
+        bombsText.setStyle(Text::Bold);
+
+        // Position the remaining bombs text
+        float centerX = window.getSize().x - bombsText.getLocalBounds().width - 10;
+        bombsText.setPosition(centerX, (ADDITIONAL_SPACE - bombsText.getLocalBounds().height) / 2);
+
+        window.draw(bombsText);
+    }
+
+
     void draw() {
         window.clear();
 
         drawBob();
+
+        // Draw timer
+        drawTimer();
+
+        // Draw remaining bombs count
+        drawRemainingBombs();
 
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
@@ -412,11 +491,6 @@ class Renderer {
     }
 
     void drawWonMessage() {
-		Font font;
-        if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
-			cerr << "Failed to load font" << endl;
-			return;
-		}
 
 		Text wonText("You Won", font, 60);
 		wonText.setFillColor(Color::Green);
@@ -430,11 +504,6 @@ class Renderer {
 	}
 
     void drawLostMessage() {
-        Font font;
-        if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
-            cerr << "Failed to load font" << endl;
-            return;
-        }
 
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
@@ -442,7 +511,6 @@ class Renderer {
                 if (board.getCell(i, j).isBomb() && !board.getCell(i, j).isFlagged()) {
                     board.getCell(i, j).drawBomb(window);
                 }
-
             }
         }
 
@@ -494,6 +562,7 @@ class Renderer {
         carefulMode = false;
         row = -1;
         col = -1;
+        firstClick = true;
     }
 
 public:
@@ -504,6 +573,9 @@ public:
         window.create(VideoMode(windowWidth, windowHeight), "Minesweeper",
             Style::Titlebar | Style::Close);
         window.setFramerateLimit(60);
+
+        loadFont(); // Initialize font and other resources
+        
     }
 
     void run() {
