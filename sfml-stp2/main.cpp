@@ -314,7 +314,6 @@ class Renderer {
                 window.close();
             }
             else if (event.type == Event::MouseButtonPressed) {
-                if (LOST || board.checkWinCondition()) return;
 
                 int x = event.mouseButton.x;
                 int y = event.mouseButton.y - ADDITIONAL_SPACE;
@@ -330,6 +329,8 @@ class Renderer {
                     restartGame();
                     return;
                 }
+
+                if (LOST || board.checkWinCondition()) return;
 
                 // ensure the click is within the board boundaries
                 if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
