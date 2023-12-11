@@ -61,18 +61,13 @@ public:
 	}
 
     void drawFlag(RenderWindow& window) {
-        static Texture flag_texture;
+        static Texture flag_texture; // static to load the texture only once
         if (flag_texture.getSize().x == 0) {
             flag_texture.loadFromFile("icons/red-flag.png");
         }
 
         if (flagged && !opened) {
-            Sprite flag_sprite(flag_texture);
-            flag_sprite.setTextureRect(IntRect(0, 0, 40, 40));
-            float sprite_size = 40;
-            float dif = (CELL_SIZE - sprite_size) / 2;
-            flag_sprite.setPosition(column * CELL_SIZE + dif, row * CELL_SIZE + ADDITIONAL_SPACE + dif);
-            window.draw(flag_sprite);
+            createSprite(window, flag_texture);
         }
     }
 
@@ -106,34 +101,20 @@ public:
             break;
         }
 
-        this->shape.setFillColor(Color::White);
-        window.draw(this->shape);
-
         if (opened) {
-            Sprite flag_sprite(number_texture);
-            flag_sprite.setTextureRect(IntRect(0, 0, 40, 40));
-            float sprite_size = 40;
-            float dif = (CELL_SIZE - sprite_size) / 2;
-            flag_sprite.setPosition(column * CELL_SIZE + dif, row * CELL_SIZE + ADDITIONAL_SPACE + dif);
-            window.draw(flag_sprite);
+            createSprite(window, number_texture);
         }
     }
 
-    void drawBomb(RenderWindow& window) {
-		static Texture bomb_texture;
-        if (bomb_texture.getSize().x == 0) {
-			bomb_texture.loadFromFile("icons/bomb.png");
-		}
+    void createSprite(RenderWindow& window, Texture& texture) {
 
-        if (bomb) {
-			Sprite bomb_sprite(bomb_texture);
-			bomb_sprite.setTextureRect(IntRect(0, 0, 40, 40));
-			float sprite_size = 40;
-			float dif = (CELL_SIZE - sprite_size) / 2;
-			bomb_sprite.setPosition(column * CELL_SIZE + dif, row * CELL_SIZE + ADDITIONAL_SPACE + dif);
-			window.draw(bomb_sprite);
-		}
-	}
+        Sprite sprite(texture);
+        sprite.setTextureRect(IntRect(0, 0, 40, 40));
+        float sprite_size = 40;
+        float dif = (CELL_SIZE - sprite_size) / 2;
+        sprite.setPosition(column * CELL_SIZE + dif, row * CELL_SIZE + ADDITIONAL_SPACE + dif);
+        window.draw(sprite);
+    }
 
     bool isBomb() const {
         return this->bomb;
@@ -168,9 +149,16 @@ public:
         window.draw(this->shape);
     }
 
-    RectangleShape getShape() const {
-		return this->shape;
-	}
+    void drawBomb(RenderWindow& window) {
+        static Texture bomb_texture;
+        if (bomb_texture.getSize().x == 0) {
+            bomb_texture.loadFromFile("icons/bomb.png");
+        }
+
+        if (bomb) {
+            createSprite(window, bomb_texture);
+        }
+    }
 };
 
 
@@ -178,9 +166,9 @@ class Board {
     int rows, columns, bombs, closedCells, remainingBombs = 0;
     vector<vector<Cell*>> cells;
 
-    bool firstMove = true; // Track if it's the first move
+    bool firstMove = true;
 
-    // Generate bombs, excluding the first clicked cell and its neighbors
+    // generate bombs, excluding the first clicked cell and its neighbors
     void generateBombs(int clickedRow, int clickedCol) {
         int bombsToAdd = bombs;
         while (bombsToAdd > 0) {
@@ -249,8 +237,7 @@ public:
         return this->columns;
     }
 
-    // Public function to trigger opening of a cell and its neighbors
-    void openNeighborCells(int row, int col, RenderWindow& window) {
+    void openCells(int row, int col, RenderWindow& window) {
         if (row < 0 || col < 0 || row >= rows || col >= columns) {
             return; // Check for out-of-bounds
         }
@@ -262,19 +249,18 @@ public:
 
         cell.open(window);
 
-        // If it's the first move, generate bombs after the first cell is opened
         if (firstMove) {
             firstMove = false;
-            generateBombs(row, col); // Generate bombs after the first cell is opened
-            calculateNghbBombs(); // Update neighbor bomb counts
+            generateBombs(row, col);
+            calculateNghbBombs();
         }
 
-        // If the cell has no neighboring bombs, recursively open adjacent neighbors
+        // if the cell has no neighboring bombs, recursively open adjacent neighbors
         if (cell.neighborBombs == 0) {
             for (int k = row - 1; k <= row + 1; ++k) {
                 for (int l = col - 1; l <= col + 1; ++l) {
                     if ((k != row || l != col) && k >= 0 && l >= 0 && k < rows && l < columns) {
-                        openNeighborCells(k, l, window);
+                        openCells(k, l, window);
                     }
                 }
             }
@@ -294,7 +280,7 @@ public:
 		return this->board;
 	}
     
-    void setLevel(Level l) {
+    void setLevel(Level& l) {
 		this->level = l;
 	}
 };
@@ -307,30 +293,27 @@ class Renderer {
     void handleEvents() {
         Event event;
         while (window.pollEvent(event)) {
-            if (event.type == Event::Closed) { // If the window is closed
-                window.close(); // Close the window
+            if (event.type == Event::Closed) {
+                window.close();
             }
             else if (event.type == Event::MouseButtonPressed) {
                 if (LOST) return;
                 int x = event.mouseButton.x;
                 int y = event.mouseButton.y - ADDITIONAL_SPACE;
 
-                // Ensure the click is within the board boundaries
+                // ensure the click is within the board boundaries
                 if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
                     y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
                     int row = y / CELL_SIZE;
                     int col = x / CELL_SIZE;
 
                     if (event.mouseButton.button == Mouse::Left) {
-                        // Open the cell and its neighbors
-                        //board.getCell(row, col).open(window);
                         if (!board.getCell(row, col).isFlagged()) {
-                            board.openNeighborCells(row, col, window);
+                            // open the cell and its neighbors
+                            board.openCells(row, col, window);
                         }
-                        
                     }
                     else if (event.mouseButton.button == Mouse::Right) {
-                        // Toggle the flag of the cell
                         board.getCell(row, col).toggleFlag();
                     }
                 }
@@ -338,35 +321,31 @@ class Renderer {
         }
     }
 
-
     void draw() {
         window.clear();
 
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
-                board.getCell(i, j).draw(window);
-            }
-        }
 
-        for (int i = 0; i < board.getRows(); ++i) {
-            for (int j = 0; j < board.getColumns(); ++j) {
+                board.getCell(i, j).draw(window); // initial draw
 
+                // depending on the state of the cell, draw the appropriate icon
                 if (board.getCell(i, j).isFlagged()) {
                     board.getCell(i, j).drawFlag(window);
                 }
 
                 else if (board.getCell(i, j).isOpen()) {
-					board.getCell(i, j).drawNumberBombs(window);
-
+					
                     if (board.getCell(i, j).isBomb()) {
-						board.getCell(i, j).draw(window);
-                        board.getCell(i, j).drawBomb(window);
+						board.getCell(i, j).drawBomb(window);
 					}
+                    else {
+                        board.getCell(i, j).drawNumberBombs(window);
+                    }
 				}
-
             }
         }
-        // Draw the "You Lost" message
+
         drawLostMessage();
 
         window.display();
@@ -405,7 +384,7 @@ class Renderer {
 public:
     Renderer(Minesweeper& m) : game(m), board(m.getBoard()) {
         int windowWidth = board.getColumns() * CELL_SIZE;
-        int windowHeight = board.getRows() * CELL_SIZE + ADDITIONAL_SPACE; // Additional space added above the board
+        int windowHeight = board.getRows() * CELL_SIZE + ADDITIONAL_SPACE;
 
         window.create(VideoMode(windowWidth, windowHeight), "Minesweeper",
             Style::Titlebar | Style::Close);
