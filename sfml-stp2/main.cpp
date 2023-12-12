@@ -168,11 +168,19 @@ public:
             createSprite(window, bomb_texture);
         }
     }
+
+    void reset() {
+        bomb = false;
+        flagged = false;
+        opened = false;
+        neighborBombs = INT16_MAX;
+        shape.setFillColor(Color(192, 192, 192));
+    }
 };
 
 
 class Board {
-    int rows, columns, bombs, closedCells, remainingBombs = 0;
+    int rows, columns, bombs, closedCells = 0;
     vector<vector<Cell*>> cells;
 
     bool firstMove = true;
@@ -216,7 +224,7 @@ class Board {
 public:
 
     Board(int r, int c, int bombs) :
-        rows(r), columns(c), bombs(bombs), closedCells(r* c), remainingBombs(bombs){
+        rows(r), columns(c), bombs(bombs), closedCells(r* c) {
         // Initialize the board with empty cells
         REMAINING_BOMBS = bombs;
         cells = vector<vector<Cell*>>(rows, vector<Cell*>(columns));
@@ -228,21 +236,23 @@ public:
         }
     }
 
+    void reset() {
+        // Close all cells, remove flags, and reset bombs
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < columns; ++j) {
+                cells[i][j]->reset();
+            }
+        }
+
+        // Reset game state
+        firstMove = true;
+        closedCells = rows * columns;
+        REMAINING_BOMBS = bombs;
+    }
+
     Cell& getCell(int row, int column) const {
         return *(this->cells[row][column]);
     }
-
-    int getClosed() const {
-        return this->closedCells;
-    }
-
-    int getRemainedBombs() const {
-        return this->remainingBombs;
-    }
-
-    void decrementRemainedBombs() {
-		--this->remainingBombs;
-	}
 
     int getRows() const {
         return this->rows;
@@ -306,6 +316,10 @@ public:
     Board& getBoard() {
 		return this->board;
 	}
+
+    void resetBoard() {
+        board.reset();  // Call the reset method of the Board
+    }
     
     void setLevel(Level newLevel) {
         level = newLevel;
@@ -341,7 +355,7 @@ class Renderer {
 
     bool dropdownOpen = false;
     vector<pair<string, Level>> levels = { {"Easy", Level::easy}, {"Intermediate", Level::intermediate}, {"Expert", Level::expert} };
-    RectangleShape dropdownButton;
+    RectangleShape dropdown;
     vector<Text> levelTexts;
 
     void loadFont() {
@@ -372,19 +386,18 @@ class Renderer {
                 if (firstClick && !LOST && !board.checkWinCondition()) {
                     // Start the timer on the first valid click
                     timer.restart();
-                    firstClick = false; // Set the flag to false after the first click
+                    firstClick = false;
                 }
 
                 int x = event.mouseButton.x;
                 int y = event.mouseButton.y - ADDITIONAL_SPACE;
 
-                // Calculate smiley face boundaries
                 FloatRect smileyBounds(
                     board.getColumns() * CELL_SIZE / 2 - 30,
                     (ADDITIONAL_SPACE - 60) / 2,
                     60, 60);
 
-                // Check if click is within smiley face boundaries
+                // check if click is within smiley face boundaries
                 if (smileyBounds.contains(x, y + ADDITIONAL_SPACE)) {
                     restartGame();
                     return;
@@ -393,7 +406,6 @@ class Renderer {
                 if (LOST || board.checkWinCondition()) {
                     timer.restart();
                     firstClick = true;
-                    //seconds = 0;
                     return;
                 }
 
@@ -427,8 +439,9 @@ class Renderer {
                 if (event.mouseButton.button == Mouse::Right) {
 					suspiciousMode = false;
 
+                    // to be able to click on things outside the board
                     if (row < 0 || col < 0 || row >= board.getRows() || col >= board.getColumns()) {
-                        return; // Check for out-of-bounds
+                        return;
                     }
                     board.getCell(row, col).toggleFlag();
 				}
@@ -437,7 +450,6 @@ class Renderer {
     }
 
     void drawTimer() {
-        // Calculate elapsed time in seconds
         if (!gameOver) { // Only update timer if game is not over
             if (firstClick) {
                 seconds = 0;
@@ -447,40 +459,38 @@ class Renderer {
             }
         }
         
-        // Create a text object to display the timer
         Text timerText("Time: " + to_string(seconds) + "s", font, 20);
         timerText.setFillColor(Color::White);
         timerText.setStyle(Text::Bold);
 
-        // Position the timer text
         float centerX = window.getSize().x / 2.0f - timerText.getLocalBounds().width / 2.0f;
         timerText.setPosition(10, (ADDITIONAL_SPACE - timerText.getLocalBounds().height) / 2);
 
         window.draw(timerText);
     }
 
-    void drawRemainingBombs() {
-        // Display the number of remaining bombs
+    void RemainingBombsCount() {
         Text bombsText("Bombs: " + to_string(REMAINING_BOMBS), font, 20);
         bombsText.setFillColor(Color::White);
         bombsText.setStyle(Text::Bold);
 
-        // Position the remaining bombs text
-        float centerX = window.getSize().x - bombsText.getLocalBounds().width - 10;
-        bombsText.setPosition(centerX, (ADDITIONAL_SPACE - bombsText.getLocalBounds().height) / 2);
+        float posX = window.getSize().x - bombsText.getLocalBounds().width - 10;
+        bombsText.setPosition(posX, (ADDITIONAL_SPACE - bombsText.getLocalBounds().height) / 2);
 
         window.draw(bombsText);
     }
 
     void setupDropdown() {
-        // Setup dropdown button
-        dropdownButton.setSize(Vector2f(100, 30));
-        dropdownButton.setPosition(10, 10); // Example position
+
+        dropdown.setFillColor(Color(192, 192, 192));
+        dropdown.setSize(Vector2f(140, 30));
+        dropdown.setPosition(10, 10); 
 
         // Setup level texts
         for (int i = 0; i < levels.size(); ++i) {
             Text text(levels[i].first, font, 20);
-            text.setPosition(10, 40 + i * 30); // Adjust positions as needed
+            text.setPosition(12, 40 + i * 30);
+            text.setFillColor(Color::Magenta);
             levelTexts.push_back(text);
         }
     }
@@ -488,7 +498,7 @@ class Renderer {
     void handleDropdownEvent(Event event) {
         if (event.type == Event::MouseButtonPressed) {
             Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
-            if (dropdownButton.getGlobalBounds().contains(mousePos)) {
+            if (dropdown.getGlobalBounds().contains(mousePos)) {
                 dropdownOpen = !dropdownOpen;
             }
             else if (dropdownOpen) {
@@ -496,20 +506,11 @@ class Renderer {
                     if (levelTexts[i].getGlobalBounds().contains(mousePos)) {
                         game.setLevel(levels[i].second);
                         dropdownOpen = false;
-                        //restartGame(); // Restart game with new level
+                        restartGame(); // Restart game with new level
                         updateWindowSize();
                         break;
                     }
                 }
-            }
-        }
-    }
-
-    void drawDropdown() {
-        window.draw(dropdownButton);
-        if (dropdownOpen) {
-            for (auto& text : levelTexts) {
-                window.draw(text);
             }
         }
     }
@@ -519,8 +520,32 @@ class Renderer {
 
         drawBob();
         drawTimer();
-        drawRemainingBombs();
+        RemainingBombsCount();
+        drawCells();
 
+        if (LOST) {
+            for (int i = 0; i < board.getRows(); ++i) {
+                for (int j = 0; j < board.getColumns(); ++j) {
+
+                    if (board.getCell(i, j).isBomb() && !board.getCell(i, j).isFlagged()) {
+                        board.getCell(i, j).drawBomb(window);
+                    }
+                }
+            }
+
+            drawMessage("You Lost", Color::Red);
+        }
+
+        if (board.checkWinCondition()) {
+			drawMessage("You Won", Color::Green);
+		}
+
+        drawDropdown();
+
+        window.display();
+    }
+
+    void drawCells() {
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
 
@@ -535,62 +560,26 @@ class Renderer {
                 else if (cell.isOpen()) {
                     if (cell.isBomb()) {
                         cell.drawBomb(window);
-					}
+                    }
                     else {
                         cell.drawNumberBombs(window);
                     }
-				}
-            }
-        }
-
-        if (LOST) {
-            drawLostMessage();
-        }
-
-        if (board.checkWinCondition()) {
-			drawWonMessage();
-		}
-
-        drawDropdown();
-
-        window.display();
-    }
-
-    void drawWonMessage() {
-
-        gameOver = true; // Set game over to true
-		Text wonText("You Won", font, 60);
-		wonText.setFillColor(Color::Green);
-		wonText.setStyle(Text::Bold);
-
-		float centerX = window.getSize().x / 2.0f - wonText.getLocalBounds().width / 2.0f;
-		float centerY = window.getSize().y / 2.0f - wonText.getLocalBounds().height / 2.0f;
-		wonText.setPosition(centerX, centerY);
-
-		window.draw(wonText);
-	}
-
-    void drawLostMessage() {
-
-        gameOver = true; // Set game over to true
-        for (int i = 0; i < board.getRows(); ++i) {
-            for (int j = 0; j < board.getColumns(); ++j) {
-
-                if (board.getCell(i, j).isBomb() && !board.getCell(i, j).isFlagged()) {
-                    board.getCell(i, j).drawBomb(window);
                 }
             }
         }
+    }
 
-        Text lostText("You Lost", font, 60);
-        lostText.setFillColor(Color::Red);
-        lostText.setStyle(Text::Bold);
+    void drawMessage(const string& message, const Color& color) {
+        gameOver = true;
+        Text wonText(message, font, 60);
+        wonText.setFillColor(color);
+        wonText.setStyle(Text::Bold);
 
-        float centerX = window.getSize().x / 2.0f - lostText.getLocalBounds().width / 2.0f;
-        float centerY = window.getSize().y / 2.0f - lostText.getLocalBounds().height / 2.0f;
-        lostText.setPosition(centerX, centerY);
+        float centerX = window.getSize().x / 2.0f - wonText.getLocalBounds().width / 2.0f;
+        float centerY = window.getSize().y / 2.0f - wonText.getLocalBounds().height / 2.0f;
+        wonText.setPosition(centerX, centerY);
 
-        window.draw(lostText);
+        window.draw(wonText);
     }
 
     void drawBob() {
@@ -619,11 +608,27 @@ class Renderer {
         window.draw(bob);
     }
 
+    void drawDropdown() {
+        window.draw(dropdown);
+        
+        Text title("Levels", font, 20);
+        title.setPosition(12, 10); // Adjust position as needed
+        title.setFillColor(Color::Black);
+        window.draw(title);
+
+        if (dropdownOpen) {
+            for (auto& text : levelTexts) {
+                window.draw(text);
+            }
+        }
+    }
+
     //rewrite restart
 
     void restartGame() {
         window.clear();
         // game = Minesweeper();
+        game.resetBoard();
         board = game.getBoard();
         LOST = false; 
         suspiciousMode = false;
@@ -631,6 +636,7 @@ class Renderer {
         row = -1;
         col = -1;
         firstClick = true;
+        gameOver = false;
     }
 
 public:
