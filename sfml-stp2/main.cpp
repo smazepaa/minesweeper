@@ -10,7 +10,7 @@ using namespace sf;
 
 float CELL_SIZE = 50;
 bool LOST = false;
-float ADDITIONAL_SPACE = 100;
+float ADDITIONAL_SPACE = 120;
 int REMAINING_BOMBS = 0;
 
 enum class Level
@@ -379,7 +379,6 @@ class Renderer {
 
     void handleEvents() {
         Event event;
-
         while (window.pollEvent(event)) {
             if (event.type == Event::Closed) {
                 window.close();
@@ -387,48 +386,81 @@ class Renderer {
             else if (event.type == Event::MouseButtonPressed) {
                 Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
 
-                if (dropdownOpen || dropdown.getGlobalBounds().contains(mousePos)) {
-                    handleDropdownEvent(event);
+                // Handle dropdown interaction
+                if (dropdown.getGlobalBounds().contains(mousePos)) {
+                    dropdownOpen = !dropdownOpen;
                 }
-                else {
-                    // Handle cell interactions if the dropdown is not open
-                    int x = event.mouseButton.x;
-                    int y = event.mouseButton.y - ADDITIONAL_SPACE;
-
-                    FloatRect smileyBounds(
-                        board.getColumns() * CELL_SIZE / 2 - 30,
-                        (ADDITIONAL_SPACE - 60) / 2,
-                        60, 60);
-
-                    // Check if click is within smiley face boundaries
-                    if (smileyBounds.contains(x, y + ADDITIONAL_SPACE)) {
-                        restartGame();
-                        return;
-                    }
-
-                    if (LOST || board.checkWinCondition()) {
-                        return;
-                    }
-
-                    // Ensure the click is within the board boundaries
-                    if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
-                        y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
-                        row = y / CELL_SIZE;
-                        col = x / CELL_SIZE;
-
-                        if (event.mouseButton.button == Mouse::Left || event.mouseButton.button == Mouse::Right) {
-                            // Start the timer on the first valid cell click
-                            if (firstClick) {
-                                timer.restart();
-                                firstClick = false;
-                            }
-                            handleCellClick(event.mouseButton.button);
+                else if (dropdownOpen) {
+                    for (int i = 0; i < dropdownRects.size(); ++i) {
+                        if (dropdownRects[i].getGlobalBounds().contains(mousePos)) {
+                            game.setLevel(levels[i].second);
+                            dropdownOpen = false;
+                            restartGame(); // Restart game with new level
+                            updateWindowSize();
+                            return; // Exit to avoid further processing since we clicked the dropdown
                         }
                     }
+                }
+
+                int x = event.mouseButton.x;
+                int y = event.mouseButton.y - ADDITIONAL_SPACE;
+
+                // Calculate smiley face boundaries
+                FloatRect smileyBounds(
+                    board.getColumns() * CELL_SIZE / 2 - 30,
+                    (ADDITIONAL_SPACE - 60) / 2,
+                    60, 60);
+
+                // Check if click is within smiley face boundaries
+                if (smileyBounds.contains(x, y + ADDITIONAL_SPACE)) {
+                    restartGame();
+                    return;
+                }
+
+                if (LOST || board.checkWinCondition() || dropdownOpen) return;
+
+                // Ensure the click is within the board boundaries
+                if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
+                    y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
+                    row = y / CELL_SIZE;
+                    col = x / CELL_SIZE;
+
+                    if (event.mouseButton.button == Mouse::Left) {
+                        carefulMode = true;
+                    }
+                    else if (event.mouseButton.button == Mouse::Right) {
+                        suspiciousMode = true;
+                    }
+                }
+            }
+            else if (event.type == Event::MouseButtonReleased) {
+                if (dropdownOpen) {
+                    // If the dropdown is open, we do not want to process cell clicks
+                    return;
+                }
+
+                if (event.mouseButton.button == Mouse::Left) {
+                    carefulMode = false;
+                    if (row < 0 || col < 0 || row >= board.getRows() || col >= board.getColumns()) {
+                        return; // Check for out-of-bounds
+                    }
+                    else if (!board.getCell(row, col).isFlagged()) {
+                        // open the cell and its neighbors
+                        board.openCells(row, col, window);
+                    }
+                }
+                if (event.mouseButton.button == Mouse::Right) {
+                    suspiciousMode = false;
+
+                    if (row < 0 || col < 0 || row >= board.getRows() || col >= board.getColumns()) {
+                        return; // Check for out-of-bounds
+                    }
+                    board.getCell(row, col).toggleFlag();
                 }
             }
         }
     }
+
 
     void handleCellClick(Mouse::Button button) {
         if (button == Mouse::Left) {
@@ -480,23 +512,27 @@ class Renderer {
 
     void setupDropdown() {
 
-        dropdown.setFillColor(Color(192, 192, 192));
+        dropdown.setFillColor(Color(241, 242, 243));
         dropdown.setSize(Vector2f(140, 30));
         dropdown.setPosition(10, 10); 
+        dropdown.setOutlineColor(Color(182, 189, 200));
+        dropdown.setOutlineThickness(1);
 
         // Setup level texts
         for (int i = 0; i < levels.size(); ++i) {
             Text text(levels[i].first, font, 20);
             text.setPosition(12, 40 + i * 30);
-            text.setFillColor(Color::Magenta);
+            text.setFillColor(Color::Black);
             levelTexts.push_back(text);
 
             // Create a rectangle for each dropdown option
             RectangleShape rect;
             rect.setSize(Vector2f(140, 30));
             rect.setPosition(10, 40 + i * 30);
-            rect.setFillColor(Color(192, 192, 192));
-            rect.setOutlineColor(Color::Black);
+            rect.setFillColor(Color(241, 242, 243));
+            rect.setOutlineColor(Color(182, 189, 200));
+            rect.setOutlineThickness(1);
+ 
             dropdownRects.push_back(rect);
         }
     }
@@ -508,12 +544,12 @@ class Renderer {
                 dropdownOpen = !dropdownOpen;
             }
             else if (dropdownOpen) {
-
-                for (int i = 0; i < levelTexts.size(); ++i) {
-                    if (levelTexts[i].getGlobalBounds().contains(mousePos)) {
+                // Check if the click is within any of the dropdown rectangles
+                for (int i = 0; i < dropdownRects.size(); ++i) {
+                    if (dropdownRects[i].getGlobalBounds().contains(mousePos)) {
                         game.setLevel(levels[i].second);
                         dropdownOpen = false;
-                        restartGame(); // Restart game with new level
+                        restartGame();
                         updateWindowSize();
                         break;
                     }
@@ -521,6 +557,7 @@ class Renderer {
             }
         }
     }
+
 
     void draw() {
         window.clear(Color(22, 25, 29));
