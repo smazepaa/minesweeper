@@ -13,8 +13,6 @@ bool LOST = false;
 float ADDITIONAL_SPACE = 100;
 int REMAINING_BOMBS = 0;
 
-
-
 enum class Level
 {
     easy,
@@ -326,9 +324,9 @@ class Renderer {
     bool carefulMode = false;
     int row, col;
     bool firstClick = true;
+    bool gameOver = false;
 
     void loadFont() {
-        // Load font
         if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
             cerr << "Failed to load font" << endl;
         }
@@ -412,12 +410,13 @@ class Renderer {
 
     void drawTimer() {
         // Calculate elapsed time in seconds
-        if (firstClick) {
-            seconds = 0;
-        }
-        else {
-            seconds = static_cast<int>(timer.getElapsedTime().asSeconds());
-            firstClick = false;
+        if (!gameOver) { // Only update timer if game is not over
+            if (firstClick) {
+                seconds = 0;
+            }
+            else {
+                seconds = static_cast<int>(timer.getElapsedTime().asSeconds());
+            }
         }
         
         // Create a text object to display the timer
@@ -445,35 +444,30 @@ class Renderer {
         window.draw(bombsText);
     }
 
-
     void draw() {
         window.clear();
 
         drawBob();
-
-        // Draw timer
         drawTimer();
-
-        // Draw remaining bombs count
         drawRemainingBombs();
 
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
 
-                board.getCell(i, j).draw(window); // initial draw
+                Cell cell = board.getCell(i, j);
+                cell.draw(window); // initial draw
 
                 // depending on the state of the cell, draw the appropriate icon
-                if (board.getCell(i, j).isFlagged()) {
-                    board.getCell(i, j).drawFlag(window);
+                if (cell.isFlagged()) {
+                    cell.drawFlag(window);
                 }
 
-                else if (board.getCell(i, j).isOpen()) {
-					
-                    if (board.getCell(i, j).isBomb()) {
-						board.getCell(i, j).drawBomb(window);
+                else if (cell.isOpen()) {
+                    if (cell.isBomb()) {
+                        cell.drawBomb(window);
 					}
                     else {
-                        board.getCell(i, j).drawNumberBombs(window);
+                        cell.drawNumberBombs(window);
                     }
 				}
             }
@@ -492,6 +486,7 @@ class Renderer {
 
     void drawWonMessage() {
 
+        gameOver = true; // Set game over to true
 		Text wonText("You Won", font, 60);
 		wonText.setFillColor(Color::Green);
 		wonText.setStyle(Text::Bold);
@@ -505,6 +500,7 @@ class Renderer {
 
     void drawLostMessage() {
 
+        gameOver = true; // Set game over to true
         for (int i = 0; i < board.getRows(); ++i) {
             for (int j = 0; j < board.getColumns(); ++j) {
 
@@ -526,9 +522,7 @@ class Renderer {
     }
 
     void drawBob() {
-        // draw Bob face based on game state
         Texture smiley_texture;
-        Event event{};
         if (LOST) {
             smiley_texture.loadFromFile("icons/loser.png");
         }
@@ -545,19 +539,21 @@ class Renderer {
             smiley_texture.loadFromFile("icons/smiling.png");
         }
 
-        Sprite smiley(smiley_texture);
-        smiley.setTextureRect(IntRect(0, 0, 60, 60));
+        Sprite bob(smiley_texture);
+        bob.setTextureRect(IntRect(0, 0, 60, 60));
         float smiley_size = 60;
         float dif = (ADDITIONAL_SPACE - smiley_size) / 2;
-        smiley.setPosition(board.getColumns() * CELL_SIZE / 2 - smiley_size / 2, dif);
-        window.draw(smiley);
+        bob.setPosition(board.getColumns() * CELL_SIZE / 2 - smiley_size / 2, dif);
+        window.draw(bob);
     }
+
+    //rewrite restart
 
     void restartGame() {
         window.clear();
-        game = Minesweeper(); // Create a new Minesweeper instance
-        board = game.getBoard(); // Update the board reference
-        LOST = false; // Reset game state variables
+        game = Minesweeper();
+        board = game.getBoard();
+        LOST = false; 
         suspiciousMode = false;
         carefulMode = false;
         row = -1;
@@ -574,8 +570,7 @@ public:
             Style::Titlebar | Style::Close);
         window.setFramerateLimit(60);
 
-        loadFont(); // Initialize font and other resources
-        
+        loadFont();
     }
 
     void run() {
