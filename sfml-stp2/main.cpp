@@ -307,9 +307,22 @@ public:
 		return this->board;
 	}
     
-    void setLevel(Level& l) {
-		this->level = l;
-	}
+    void setLevel(Level newLevel) {
+        level = newLevel;
+        // Reinitialize the board with new level settings
+        switch (level) {
+        case Level::easy:
+            board = Board(8, 8, 10);
+            break;
+        case Level::intermediate:
+            board = Board(15, 15, 40);
+            break;
+        case Level::expert:
+            board = Board(16, 32, 99);
+            break;
+        }
+    }
+
 };
 
 class Renderer {   
@@ -326,16 +339,31 @@ class Renderer {
     bool firstClick = true;
     bool gameOver = false;
 
+    bool dropdownOpen = false;
+    vector<pair<string, Level>> levels = { {"Easy", Level::easy}, {"Intermediate", Level::intermediate}, {"Expert", Level::expert} };
+    RectangleShape dropdownButton;
+    vector<Text> levelTexts;
+
     void loadFont() {
         if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
             cerr << "Failed to load font" << endl;
         }
     }
 
+    void updateWindowSize() {
+        
+        int windowWidth = board.getColumns() * CELL_SIZE;
+        int windowHeight = board.getRows() * CELL_SIZE + ADDITIONAL_SPACE;
+        window.setSize(Vector2u(windowWidth, windowHeight));
+        window.setView(View(FloatRect(0, 0, windowWidth, windowHeight)));
+        restartGame();
+    }
+
     void handleEvents() {
         Event event;
         
         while (window.pollEvent(event)) {
+            handleDropdownEvent(event);
             if (event.type == Event::Closed) {
                 window.close();
             }
@@ -444,6 +472,48 @@ class Renderer {
         window.draw(bombsText);
     }
 
+    void setupDropdown() {
+        // Setup dropdown button
+        dropdownButton.setSize(Vector2f(100, 30));
+        dropdownButton.setPosition(10, 10); // Example position
+
+        // Setup level texts
+        for (int i = 0; i < levels.size(); ++i) {
+            Text text(levels[i].first, font, 20);
+            text.setPosition(10, 40 + i * 30); // Adjust positions as needed
+            levelTexts.push_back(text);
+        }
+    }
+
+    void handleDropdownEvent(Event event) {
+        if (event.type == Event::MouseButtonPressed) {
+            Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
+            if (dropdownButton.getGlobalBounds().contains(mousePos)) {
+                dropdownOpen = !dropdownOpen;
+            }
+            else if (dropdownOpen) {
+                for (int i = 0; i < levelTexts.size(); ++i) {
+                    if (levelTexts[i].getGlobalBounds().contains(mousePos)) {
+                        game.setLevel(levels[i].second);
+                        dropdownOpen = false;
+                        //restartGame(); // Restart game with new level
+                        updateWindowSize();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    void drawDropdown() {
+        window.draw(dropdownButton);
+        if (dropdownOpen) {
+            for (auto& text : levelTexts) {
+                window.draw(text);
+            }
+        }
+    }
+
     void draw() {
         window.clear();
 
@@ -480,6 +550,8 @@ class Renderer {
         if (board.checkWinCondition()) {
 			drawWonMessage();
 		}
+
+        drawDropdown();
 
         window.display();
     }
@@ -551,7 +623,7 @@ class Renderer {
 
     void restartGame() {
         window.clear();
-        game = Minesweeper();
+        // game = Minesweeper();
         board = game.getBoard();
         LOST = false; 
         suspiciousMode = false;
@@ -566,11 +638,11 @@ public:
         int windowWidth = board.getColumns() * CELL_SIZE;
         int windowHeight = board.getRows() * CELL_SIZE + ADDITIONAL_SPACE;
 
-        window.create(VideoMode(windowWidth, windowHeight), "Minesweeper",
-            Style::Titlebar | Style::Close);
+        window.create(VideoMode(windowWidth, windowHeight), "Minesweeper");
         window.setFramerateLimit(60);
 
         loadFont();
+        setupDropdown();
     }
 
     void run() {
