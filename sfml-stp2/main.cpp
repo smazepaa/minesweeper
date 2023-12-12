@@ -8,9 +8,9 @@
 using namespace std;
 using namespace sf;
 
-float CELL_SIZE = 50;
+const float CELL_SIZE = 50;
 bool LOST = false;
-float ADDITIONAL_SPACE = 120;
+const float ADDITIONAL_SPACE = 120;
 int REMAINING_BOMBS = 0;
 
 enum class Level
@@ -26,11 +26,9 @@ class Cell {
     bool flagged = false;
     bool opened = false;
     RectangleShape shape;
-    int neighborBombs = INT16_MAX;
+    int neighborBombs = -1;
 
 public:
-
-    Cell(){}
 
     Cell(int r, int c) : row(r), column(c) {
         shape.setSize(Vector2f(CELL_SIZE, CELL_SIZE));
@@ -74,7 +72,7 @@ public:
             flag_texture.loadFromFile("icons/red-flag.png");
         }
 
-        if (flagged && !opened) {
+        if (flagged) {
             createSprite(window, flag_texture);
         }
     }
@@ -181,14 +179,14 @@ public:
     }
 
     void reset() {
+        
         bomb = false;
         flagged = false;
         opened = false;
-        neighborBombs = INT16_MAX;
+        neighborBombs = -1;
         shape.setFillColor(Color(182, 189, 200));
     }
 };
-
 
 class Board {
     int rows, columns, bombs = 0;
@@ -249,13 +247,14 @@ public:
 
     void reset() {
         // close all cells, remove flags, and reset bombs
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < columns; ++j) {
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
                 cells[i][j]->reset();
             }
         }
 
         // reset game state
+        firstMove = true;
         REMAINING_BOMBS = bombs;
     }
 
@@ -273,12 +272,12 @@ public:
 
     void openCells(int row, int col, RenderWindow& window) {
         if (row < 0 || col < 0 || row >= rows || col >= columns) {
-            return; // Check for out-of-bounds
+            return;
         }
 
         Cell& cell = *(cells[row][col]);
         if (cell.isOpen() || cell.isFlagged()) {
-            return; // If cell is already open or flagged, return
+            return;
         }
 
         cell.open(window);
@@ -306,11 +305,11 @@ public:
             for (int j = 0; j < columns; ++j) {
                 const Cell& cell = *(cells[i][j]);
                 if ((!cell.isOpen() && !cell.isBomb()) || (cell.isBomb() && !cell.isFlagged())) {
-                    return false; // If a non-bomb cell is closed or a bomb cell isn't flagged, game is not won
+                    return false; // a non-bomb cell is closed or a bomb cell isn't flagged, game is not won
                 }
             }
         }
-        return true; // All non-bomb cells are opened, and all bomb cells are flagged
+        return true; // all non-bomb cells are opened, and all bomb cells are flagged
     }
 };
 
@@ -329,10 +328,8 @@ public:
         board.reset();  // Call the reset method of the Board
     }
     
-    void setLevel(Level newLevel) {
-        level = newLevel;
-        // Reinitialize the board with new level settings
-        switch (level) {
+    void setLevel(Level& newLevel) {
+        switch (newLevel) {
         case Level::easy:
             board = Board(8, 8, 10);
             break;
@@ -351,13 +348,13 @@ class Renderer {
     RenderWindow window;
     Minesweeper& game;
     Font font;
-    Clock timer; // Timer to keep track of elapsed time
+    Clock timer; // timer to keep track of elapsed time
     vector<pair<string, Level>> levels = { {"Easy", Level::easy}, {"Intermediate", Level::intermediate}, {"Expert", Level::expert} };
     RectangleShape dropdown;
     vector<Text> levelTexts;
     vector<RectangleShape> dropdownRects;
 
-    int seconds = 0; // Elapsed time in seconds
+    int seconds = 0;
     bool suspiciousMode = false;
     bool carefulMode = false;
     int row, col;
