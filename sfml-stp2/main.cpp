@@ -26,10 +26,9 @@ class Cell {
     bool flagged = false;
     bool opened = false;
     RectangleShape shape;
+    int neighborBombs = INT16_MAX;
 
 public:
-
-    int neighborBombs = INT16_MAX;
 
     Cell(){}
 
@@ -123,7 +122,9 @@ public:
         
         float sprite_size = 40;
         float dif = (CELL_SIZE - sprite_size) / 2;
-        sprite.setPosition(column * CELL_SIZE + dif, row * CELL_SIZE + ADDITIONAL_SPACE + dif);
+        float posX = column * CELL_SIZE + dif;
+        float posY = row * CELL_SIZE + ADDITIONAL_SPACE + dif;
+        sprite.setPosition(posX, posY);
         window.draw(sprite);
     }
 
@@ -137,6 +138,14 @@ public:
 
     int getRow() const {
         return this->row;
+    }
+
+    int getNeighborBombs() const {
+		return this->neighborBombs;
+	}
+
+    void setNeighborBombs(int bombs) {
+        this->neighborBombs = bombs;
     }
 
     int getColumn() const {
@@ -182,7 +191,7 @@ public:
 
 
 class Board {
-    int rows, columns, bombs, closedCells = 0;
+    int rows, columns, bombs = 0;
     vector<vector<Cell*>> cells;
 
     bool firstMove = true;
@@ -217,7 +226,7 @@ class Board {
                             }
                         }
                     }
-                    cells[i][j]->neighborBombs = bombs;
+                    cells[i][j]->setNeighborBombs(bombs);
                 }
             }
         }
@@ -226,8 +235,8 @@ class Board {
 public:
 
     Board(int r, int c, int bombs) :
-        rows(r), columns(c), bombs(bombs), closedCells(r* c) {
-        // Initialize the board with empty cells
+        rows(r), columns(c), bombs(bombs) {
+        // initialize the board with empty cells
         REMAINING_BOMBS = bombs;
         cells = vector<vector<Cell*>>(rows, vector<Cell*>(columns));
 
@@ -239,16 +248,14 @@ public:
     }
 
     void reset() {
-        // Close all cells, remove flags, and reset bombs
+        // close all cells, remove flags, and reset bombs
         for (int i = 0; i < rows; ++i) {
             for (int j = 0; j < columns; ++j) {
                 cells[i][j]->reset();
             }
         }
 
-        // Reset game state
-        firstMove = true;
-        closedCells = rows * columns;
+        // reset game state
         REMAINING_BOMBS = bombs;
     }
 
@@ -283,7 +290,7 @@ public:
         }
 
         // if the cell has no neighboring bombs, recursively open adjacent neighbors
-        if (cell.neighborBombs == 0) {
+        if (cell.getNeighborBombs() == 0) {
             for (int k = row - 1; k <= row + 1; ++k) {
                 for (int l = col - 1; l <= col + 1; ++l) {
                     if ((k != row || l != col) && k >= 0 && l >= 0 && k < rows && l < columns) {
@@ -345,6 +352,10 @@ class Renderer {
     Minesweeper& game;
     Font font;
     Clock timer; // Timer to keep track of elapsed time
+    vector<pair<string, Level>> levels = { {"Easy", Level::easy}, {"Intermediate", Level::intermediate}, {"Expert", Level::expert} };
+    RectangleShape dropdown;
+    vector<Text> levelTexts;
+    vector<RectangleShape> dropdownRects;
 
     int seconds = 0; // Elapsed time in seconds
     bool suspiciousMode = false;
@@ -352,12 +363,8 @@ class Renderer {
     int row, col;
     bool firstClick = true;
     bool gameOver = false;
-
     bool dropdownOpen = false;
-    vector<pair<string, Level>> levels = { {"Easy", Level::easy}, {"Intermediate", Level::intermediate}, {"Expert", Level::expert} };
-    RectangleShape dropdown;
-    vector<Text> levelTexts;
-    vector<RectangleShape> dropdownRects;
+
 
     void loadFont() {
         if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
@@ -389,42 +396,25 @@ class Renderer {
                 }
             }
             else if (event.type == Event::MouseButtonPressed) {
-                Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
-
-                // Handle dropdown interaction
-                if (dropdown.getGlobalBounds().contains(mousePos)) {
-                    dropdownOpen = !dropdownOpen;
-                }
-                else if (dropdownOpen) {
-                    for (int i = 0; i < dropdownRects.size(); ++i) {
-                        if (dropdownRects[i].getGlobalBounds().contains(mousePos)) {
-                            game.setLevel(levels[i].second);
-                            dropdownOpen = false;
-                            restartGame(); // Restart game with new level
-                            updateWindowSize();
-                            return; // Exit to avoid further processing since we clicked the dropdown
-                        }
-                    }
-                }
+                handleDropdown(event);
 
                 int x = event.mouseButton.x;
                 int y = event.mouseButton.y - ADDITIONAL_SPACE;
 
-                // Calculate smiley face boundaries
-                FloatRect smileyBounds(
+                FloatRect bobBounds(
                     board.getColumns() * CELL_SIZE / 2 - 30,
                     (ADDITIONAL_SPACE - 60) / 2,
                     60, 60);
 
-                // Check if click is within smiley face boundaries
-                if (smileyBounds.contains(x, y + ADDITIONAL_SPACE)) {
+                // check if click is within smiley face boundaries
+                if (bobBounds.contains(x, y + ADDITIONAL_SPACE)) {
                     restartGame();
                     return;
                 }
 
                 if (LOST || board.checkWinCondition() || dropdownOpen) return;
 
-                // Ensure the click is within the board boundaries
+                // ensure the click is within the board boundaries
                 if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
                     y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
                     row = y / CELL_SIZE;
@@ -446,34 +436,35 @@ class Renderer {
             }
             else if (event.type == Event::MouseButtonReleased) {
                 if (dropdownOpen) {
-                    // If the dropdown is open, we do not want to process cell clicks
+                    // if the dropdown is open, we do not want to process cell clicks
                     return;
                 }
 
-                if (event.mouseButton.button == Mouse::Left) {
-                    carefulMode = false;
-                    if (row < 0 || col < 0 || row >= board.getRows() || col >= board.getColumns()) {
-                        return; // Check for out-of-bounds
-                    }
-                    else if (!board.getCell(row, col).isFlagged()) {
-                        // open the cell and its neighbors
-                        board.openCells(row, col, window);
-                    }
-                }
-                if (event.mouseButton.button == Mouse::Right) {
-                    suspiciousMode = false;
+                handleOnRelease(event.mouseButton.button);
+            }
+        }
+    }
 
-                    if (row < 0 || col < 0 || row >= board.getRows() || col >= board.getColumns()) {
-                        return; // Check for out-of-bounds
-                    }
-                    board.getCell(row, col).toggleFlag();
+    void handleDropdown(Event& event) {
+        Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
+
+        if (dropdown.getGlobalBounds().contains(mousePos)) {
+            dropdownOpen = !dropdownOpen;
+        }
+        else if (dropdownOpen) {
+            for (int i = 0; i < dropdownRects.size(); ++i) {
+                if (dropdownRects[i].getGlobalBounds().contains(mousePos)) {
+                    game.setLevel(levels[i].second);
+                    dropdownOpen = false;
+                    restartGame();
+                    updateWindowSize();
+                    return;
                 }
             }
         }
     }
 
-
-    void handleCellClick(Mouse::Button button) {
+    void handleOnRelease(Mouse::Button& button) {
         if (button == Mouse::Left) {
             carefulMode = false;
             if (row >= 0 && col >= 0 && row < board.getRows() && col < board.getColumns() &&
@@ -491,7 +482,7 @@ class Renderer {
     }
 
     void drawTimer() {
-        if (!gameOver) { // Only update timer if game is not over
+        if (!gameOver) { // only update timer if game is not over
             if (firstClick) {
                 seconds = 0;
             }
@@ -504,7 +495,7 @@ class Renderer {
         timerText.setFillColor(Color(241, 242, 243));
         timerText.setStyle(Text::Bold);
 
-        float centerX = window.getSize().x / 2.0f - timerText.getLocalBounds().width / 2.0f;
+        float centerX = window.getSize().x / 2 - timerText.getLocalBounds().width / 2;
         timerText.setPosition(10, (ADDITIONAL_SPACE - timerText.getLocalBounds().height) / 2);
 
         window.draw(timerText);
@@ -523,20 +514,21 @@ class Renderer {
 
     void setupDropdown() {
 
+        // dropdown button
         dropdown.setFillColor(Color(241, 242, 243));
         dropdown.setSize(Vector2f(140, 30));
         dropdown.setPosition(10, 10); 
         dropdown.setOutlineColor(Color(182, 189, 200));
         dropdown.setOutlineThickness(1);
 
-        // Setup level texts
+        // level texts
         for (int i = 0; i < levels.size(); ++i) {
             Text text(levels[i].first, font, 20);
             text.setPosition(12, 40 + i * 30);
             text.setFillColor(Color::Black);
             levelTexts.push_back(text);
 
-            // Create a rectangle for each dropdown option
+            // rectangle for each dropdown option
             RectangleShape rect;
             rect.setSize(Vector2f(140, 30));
             rect.setPosition(10, 40 + i * 30);
@@ -547,28 +539,6 @@ class Renderer {
             dropdownRects.push_back(rect);
         }
     }
-
-    void handleDropdownEvent(Event event) {
-        if (event.type == Event::MouseButtonPressed) {
-            Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
-            if (dropdown.getGlobalBounds().contains(mousePos)) {
-                dropdownOpen = !dropdownOpen;
-            }
-            else if (dropdownOpen) {
-                // Check if the click is within any of the dropdown rectangles
-                for (int i = 0; i < dropdownRects.size(); ++i) {
-                    if (dropdownRects[i].getGlobalBounds().contains(mousePos)) {
-                        game.setLevel(levels[i].second);
-                        dropdownOpen = false;
-                        restartGame();
-                        updateWindowSize();
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
 
     void draw() {
         window.clear(Color(22, 25, 29));
@@ -605,7 +575,7 @@ class Renderer {
             for (int j = 0; j < board.getColumns(); ++j) {
 
                 Cell cell = board.getCell(i, j);
-                cell.draw(window); // initial draw
+                cell.draw(window); // initial draw (all closed)
 
                 // depending on the state of the cell, draw the appropriate icon
                 if (cell.isFlagged()) {
@@ -630,8 +600,8 @@ class Renderer {
         wonText.setFillColor(color);
         wonText.setStyle(Text::Bold);
 
-        float centerX = window.getSize().x / 2.0f - wonText.getLocalBounds().width / 2.0f;
-        float centerY = window.getSize().y / 2.0f - wonText.getLocalBounds().height / 2.0f;
+        float centerX = window.getSize().x / 2 - wonText.getLocalBounds().width / 2;
+        float centerY = window.getSize().y / 2 - wonText.getLocalBounds().height / 2;
         wonText.setPosition(centerX, centerY);
 
         window.draw(wonText);
@@ -667,7 +637,7 @@ class Renderer {
         window.draw(dropdown);
         
         Text title("Levels:", font, 20);
-        title.setPosition(12, 10); // Adjust position as needed
+        title.setPosition(12, 10);
         title.setFillColor(Color::Black);
         window.draw(title);
 
