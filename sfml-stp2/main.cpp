@@ -44,7 +44,7 @@ public:
     void open(RenderWindow& window) {
         this->opened = true;
         if (this->bomb) {
-            this->shape.setFillColor(Color::Red);
+            this->shape.setFillColor(Color(99, 0, 16));
             LOST = true;
             return;
         }
@@ -149,7 +149,7 @@ public:
 
     void draw(RenderWindow& window) {
         if (opened && bomb) {
-            this->shape.setFillColor(Color::Red);
+            this->shape.setFillColor(Color(126, 27, 33));
         }
         else if (opened) {
             this->shape.setFillColor(Color(241, 242, 243));
@@ -458,7 +458,7 @@ class Renderer {
         }
         
         Text timerText("Time: " + to_string(seconds) + "s", font, 20);
-        timerText.setFillColor(Color::White);
+        timerText.setFillColor(Color(241, 242, 243));
         timerText.setStyle(Text::Bold);
 
         float centerX = window.getSize().x / 2.0f - timerText.getLocalBounds().width / 2.0f;
@@ -469,7 +469,7 @@ class Renderer {
 
     void RemainingBombsCount() {
         Text bombsText("Bombs: " + to_string(REMAINING_BOMBS), font, 20);
-        bombsText.setFillColor(Color::White);
+        bombsText.setFillColor(Color(241, 242, 243));
         bombsText.setStyle(Text::Bold);
 
         float posX = window.getSize().x - bombsText.getLocalBounds().width - 10;
@@ -523,7 +523,7 @@ class Renderer {
     }
 
     void draw() {
-        window.clear(Color(0, 0, 26));
+        window.clear(Color(22, 25, 29));
 
         drawBob();
         drawTimer();
@@ -618,7 +618,7 @@ class Renderer {
     void drawDropdown() {
         window.draw(dropdown);
         
-        Text title("Levels", font, 20);
+        Text title("Levels:", font, 20);
         title.setPosition(12, 10); // Adjust position as needed
         title.setFillColor(Color::Black);
         window.draw(title);
