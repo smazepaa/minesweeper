@@ -430,6 +430,11 @@ class Renderer {
                     row = y / CELL_SIZE;
                     col = x / CELL_SIZE;
 
+                    if (firstClick) {
+                        timer.restart();
+                        firstClick = false;
+                    }
+
                     if (event.mouseButton.button == Mouse::Left) {
                         carefulMode = true;
                     }
