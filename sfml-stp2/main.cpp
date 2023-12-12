@@ -305,7 +305,6 @@ public:
         }
         return true; // All non-bomb cells are opened, and all bomb cells are flagged
     }
-
 };
 
 class Minesweeper {
@@ -338,7 +337,6 @@ public:
             break;
         }
     }
-
 };
 
 class Renderer {   
@@ -374,7 +372,6 @@ class Renderer {
         window.setSize(Vector2u(windowWidth, windowHeight));
         window.setView(View(FloatRect(0, 0, windowWidth, windowHeight)));
         restartGame();
-        //gameOver = false;
     }
 
     void handleEvents() {
@@ -382,6 +379,14 @@ class Renderer {
         while (window.pollEvent(event)) {
             if (event.type == Event::Closed) {
                 window.close();
+            }
+            else if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Q) {
+                    window.close();
+                }
+                if (event.key.code == sf::Keyboard::R) {
+                    restartGame();
+                }
             }
             else if (event.type == Event::MouseButtonPressed) {
                 Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
@@ -431,6 +436,7 @@ class Renderer {
                     else if (event.mouseButton.button == Mouse::Right) {
                         suspiciousMode = true;
                     }
+
                 }
             }
             else if (event.type == Event::MouseButtonReleased) {
