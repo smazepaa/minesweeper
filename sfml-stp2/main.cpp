@@ -38,7 +38,7 @@ public:
         shape.setPosition(c * CELL_SIZE, r * CELL_SIZE + ADDITIONAL_SPACE);
         shape.setOutlineColor(Color::Black);
         shape.setOutlineThickness(1);
-        shape.setFillColor(Color(192, 192, 192));
+        shape.setFillColor(Color(182, 189, 200));
     };
 
     void open(RenderWindow& window) {
@@ -48,7 +48,7 @@ public:
             LOST = true;
             return;
         }
-        this->shape.setFillColor(Color::White);
+        this->shape.setFillColor(Color(241, 242, 243));
     }
 
     void toggleFlag() {
@@ -82,35 +82,36 @@ public:
 
     void drawNumberBombs(RenderWindow& window) {
         Texture number_texture;
+        bool textureLoaded = false;
 
         switch (neighborBombs) {
         case 1:
-            number_texture.loadFromFile("icons/one.png");
+            textureLoaded = number_texture.loadFromFile("icons/one.png");
             break;
         case 2:
-            number_texture.loadFromFile("icons/two.png");
+            textureLoaded = number_texture.loadFromFile("icons/two.png");
             break;
         case 3:
-            number_texture.loadFromFile("icons/three.png");
+            textureLoaded = number_texture.loadFromFile("icons/three.png");
             break;
         case 4:
-            number_texture.loadFromFile("icons/four.png");
+            textureLoaded = number_texture.loadFromFile("icons/four.png");
             break;
         case 5:
-            number_texture.loadFromFile("icons/five.png");
+            textureLoaded = number_texture.loadFromFile("icons/five.png");
             break;
         case 6:
-            number_texture.loadFromFile("icons/six.png");
+            textureLoaded = number_texture.loadFromFile("icons/six.png");
             break;
         case 7:
-            number_texture.loadFromFile("icons/seven.png");
+            textureLoaded = number_texture.loadFromFile("icons/seven.png");
             break;
         case 8:
-            number_texture.loadFromFile("icons/eight.png");
+            textureLoaded = number_texture.loadFromFile("icons/eight.png");
             break;
         }
 
-        if (opened) {
+        if (opened && textureLoaded) {
             createSprite(window, number_texture);
         }
     }
@@ -119,6 +120,7 @@ public:
 
         Sprite sprite(texture);
         sprite.setTextureRect(IntRect(0, 0, 40, 40));
+        
         float sprite_size = 40;
         float dif = (CELL_SIZE - sprite_size) / 2;
         sprite.setPosition(column * CELL_SIZE + dif, row * CELL_SIZE + ADDITIONAL_SPACE + dif);
@@ -150,10 +152,10 @@ public:
             this->shape.setFillColor(Color::Red);
         }
         else if (opened) {
-			this->shape.setFillColor(Color::White);
+            this->shape.setFillColor(Color(241, 242, 243));
 		}
         else {
-			this->shape.setFillColor(Color(192, 192, 192));
+			this->shape.setFillColor(Color(182, 189, 200));
 		}
         window.draw(this->shape);
     }
@@ -174,7 +176,7 @@ public:
         flagged = false;
         opened = false;
         neighborBombs = INT16_MAX;
-        shape.setFillColor(Color(192, 192, 192));
+        shape.setFillColor(Color(182, 189, 200));
     }
 };
 
@@ -357,6 +359,7 @@ class Renderer {
     vector<pair<string, Level>> levels = { {"Easy", Level::easy}, {"Intermediate", Level::intermediate}, {"Expert", Level::expert} };
     RectangleShape dropdown;
     vector<Text> levelTexts;
+    vector<RectangleShape> dropdownRects;
 
     void loadFont() {
         if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
@@ -371,81 +374,76 @@ class Renderer {
         window.setSize(Vector2u(windowWidth, windowHeight));
         window.setView(View(FloatRect(0, 0, windowWidth, windowHeight)));
         restartGame();
+        //gameOver = false;
     }
 
     void handleEvents() {
         Event event;
-        
+
         while (window.pollEvent(event)) {
-            handleDropdownEvent(event);
             if (event.type == Event::Closed) {
                 window.close();
             }
             else if (event.type == Event::MouseButtonPressed) {
+                Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
 
-                if (firstClick && !LOST && !board.checkWinCondition()) {
-                    // Start the timer on the first valid click
-                    timer.restart();
-                    firstClick = false;
+                if (dropdownOpen || dropdown.getGlobalBounds().contains(mousePos)) {
+                    handleDropdownEvent(event);
                 }
+                else {
+                    // Handle cell interactions if the dropdown is not open
+                    int x = event.mouseButton.x;
+                    int y = event.mouseButton.y - ADDITIONAL_SPACE;
 
-                int x = event.mouseButton.x;
-                int y = event.mouseButton.y - ADDITIONAL_SPACE;
+                    FloatRect smileyBounds(
+                        board.getColumns() * CELL_SIZE / 2 - 30,
+                        (ADDITIONAL_SPACE - 60) / 2,
+                        60, 60);
 
-                FloatRect smileyBounds(
-                    board.getColumns() * CELL_SIZE / 2 - 30,
-                    (ADDITIONAL_SPACE - 60) / 2,
-                    60, 60);
-
-                // check if click is within smiley face boundaries
-                if (smileyBounds.contains(x, y + ADDITIONAL_SPACE)) {
-                    restartGame();
-                    return;
-                }
-
-                if (LOST || board.checkWinCondition()) {
-                    timer.restart();
-                    firstClick = true;
-                    return;
-                }
-
-                // ensure the click is within the board boundaries
-                if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
-                    y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
-                    row = y / CELL_SIZE;
-                    col = x / CELL_SIZE;
-
-                    if (event.mouseButton.button == Mouse::Left) {
-                        carefulMode = true;
-                    }
-                    else if (event.mouseButton.button == Mouse::Right) {
-                        suspiciousMode = true;
-                    }
-
-                }
-            }
-            else if (event.type == Event::MouseButtonReleased)
-            {
-                if (event.mouseButton.button == Mouse::Left) {
-                    carefulMode = false;
-                    if (row < 0 || col < 0 || row >= board.getRows() || col >= board.getColumns()) {
-                        return; // Check for out-of-bounds
-                    }
-                    else if (!board.getCell(row, col).isFlagged()) {
-                        // open the cell and its neighbors
-                        board.openCells(row, col, window);
-                    }
-                }
-                if (event.mouseButton.button == Mouse::Right) {
-					suspiciousMode = false;
-
-                    // to be able to click on things outside the board
-                    if (row < 0 || col < 0 || row >= board.getRows() || col >= board.getColumns()) {
+                    // Check if click is within smiley face boundaries
+                    if (smileyBounds.contains(x, y + ADDITIONAL_SPACE)) {
+                        restartGame();
                         return;
                     }
-                    board.getCell(row, col).toggleFlag();
-				}
-			}
+
+                    if (LOST || board.checkWinCondition()) {
+                        return;
+                    }
+
+                    // Ensure the click is within the board boundaries
+                    if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
+                        y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
+                        row = y / CELL_SIZE;
+                        col = x / CELL_SIZE;
+
+                        if (event.mouseButton.button == Mouse::Left || event.mouseButton.button == Mouse::Right) {
+                            // Start the timer on the first valid cell click
+                            if (firstClick) {
+                                timer.restart();
+                                firstClick = false;
+                            }
+                            handleCellClick(event.mouseButton.button);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    void handleCellClick(Mouse::Button button) {
+        if (button == Mouse::Left) {
+            carefulMode = false;
+            if (row >= 0 && col >= 0 && row < board.getRows() && col < board.getColumns() &&
+                !board.getCell(row, col).isFlagged()) {
+                // Open the cell and its neighbors
+                board.openCells(row, col, window);
+            }
+        }
+        else if (button == Mouse::Right) {
+            suspiciousMode = false;
+            if (row >= 0 && col >= 0 && row < board.getRows() && col < board.getColumns()) {
+                board.getCell(row, col).toggleFlag();
+            }
         }
     }
 
@@ -492,6 +490,14 @@ class Renderer {
             text.setPosition(12, 40 + i * 30);
             text.setFillColor(Color::Magenta);
             levelTexts.push_back(text);
+
+            // Create a rectangle for each dropdown option
+            RectangleShape rect;
+            rect.setSize(Vector2f(140, 30));
+            rect.setPosition(10, 40 + i * 30);
+            rect.setFillColor(Color(192, 192, 192));
+            rect.setOutlineColor(Color::Black);
+            dropdownRects.push_back(rect);
         }
     }
 
@@ -502,6 +508,7 @@ class Renderer {
                 dropdownOpen = !dropdownOpen;
             }
             else if (dropdownOpen) {
+
                 for (int i = 0; i < levelTexts.size(); ++i) {
                     if (levelTexts[i].getGlobalBounds().contains(mousePos)) {
                         game.setLevel(levels[i].second);
@@ -516,7 +523,7 @@ class Renderer {
     }
 
     void draw() {
-        window.clear();
+        window.clear(Color(0, 0, 26));
 
         drawBob();
         drawTimer();
@@ -617,17 +624,18 @@ class Renderer {
         window.draw(title);
 
         if (dropdownOpen) {
+            for (auto& rect : dropdownRects) {
+                window.draw(rect);
+            }
+
             for (auto& text : levelTexts) {
                 window.draw(text);
             }
         }
     }
 
-    //rewrite restart
-
     void restartGame() {
         window.clear();
-        // game = Minesweeper();
         game.resetBoard();
         board = game.getBoard();
         LOST = false; 
@@ -637,6 +645,7 @@ class Renderer {
         col = -1;
         firstClick = true;
         gameOver = false;
+        timer.restart();
     }
 
 public:
