@@ -191,43 +191,31 @@ public:
 class Board {
     int rows, columns, bombs = 0;
     vector<vector<Cell*>> cells;
-
     bool firstMove = true;
-
-    // generate bombs, excluding the first clicked cell and its neighbors
-    void generateBombs(int clickedRow, int clickedCol) {
-        int bombsToAdd = bombs;
-        srand(static_cast<unsigned>(time(nullptr))); // Seed the random number generator
-        while (bombsToAdd > 0) {
-            int row = rand() % rows;
-            int column = rand() % columns;
-
-            if (!cells[row][column]->isBomb() &&
-                !(abs(row - clickedRow) <= 1 && abs(column - clickedCol) <= 1)) {
-                cells[row][column]->setBomb();
-                --bombsToAdd;
-            }
-        }
-    }
-
-    void calculateNghbBombs() {
+    
+    bool checkWinCondition() const {
         for (int i = 0; i < rows; ++i) {
             for (int j = 0; j < columns; ++j) {
-                if (!cells[i][j]->isBomb()) {
-                    int bombs = 0;
-                    for (int k = i - 1; k <= i + 1; ++k) {
-                        for (int l = j - 1; l <= j + 1; ++l) {
-                            if (k >= 0 && k < rows && l >= 0 && l < columns) {
-                                if (cells[k][l]->isBomb()) {
-                                    ++bombs;
-                                }
-                            }
-                        }
-                    }
-                    cells[i][j]->setNeighborBombs(bombs);
+                const Cell& cell = *(cells[i][j]);
+                if ((!cell.isOpen() && !cell.isBomb()) || (cell.isBomb() && !cell.isFlagged())) {
+                    return false; // a non-bomb cell is closed or a bomb cell isn't flagged, game is not won
                 }
             }
         }
+        return true; // all non-bomb cells are opened, and all bomb cells are flagged
+    }
+
+    void reset() {
+        // close all cells, remove flags, and reset bombs
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                cells[i][j]->reset();
+            }
+        }
+
+        // reset game state
+        firstMove = true;
+        REMAINING_BOMBS = bombs;
     }
 
 public:
@@ -245,72 +233,7 @@ public:
         }
     }
 
-    void reset() {
-        // close all cells, remove flags, and reset bombs
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < columns; j++) {
-                cells[i][j]->reset();
-            }
-        }
-
-        // reset game state
-        firstMove = true;
-        REMAINING_BOMBS = bombs;
-    }
-
-    Cell& getCell(int row, int column) const {
-        return *(this->cells[row][column]);
-    }
-
-    int getRows() const {
-        return this->rows;
-    }
-
-    int getColumns() const {
-        return this->columns;
-    }
-
-    void openCells(int row, int col, RenderWindow& window) {
-        if (row < 0 || col < 0 || row >= rows || col >= columns) {
-            return;
-        }
-
-        Cell& cell = *(cells[row][col]);
-        if (cell.isOpen() || cell.isFlagged()) {
-            return;
-        }
-
-        cell.open(window);
-
-        if (firstMove) {
-            firstMove = false;
-            generateBombs(row, col);
-            calculateNghbBombs();
-        }
-
-        // if the cell has no neighboring bombs, recursively open adjacent neighbors
-        if (cell.getNeighborBombs() == 0) {
-            for (int k = row - 1; k <= row + 1; ++k) {
-                for (int l = col - 1; l <= col + 1; ++l) {
-                    if ((k != row || l != col) && k >= 0 && l >= 0 && k < rows && l < columns) {
-                        openCells(k, l, window);
-                    }
-                }
-            }
-        }
-    }
-
-    bool checkWinCondition() const {
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < columns; ++j) {
-                const Cell& cell = *(cells[i][j]);
-                if ((!cell.isOpen() && !cell.isBomb()) || (cell.isBomb() && !cell.isFlagged())) {
-                    return false; // a non-bomb cell is closed or a bomb cell isn't flagged, game is not won
-                }
-            }
-        }
-        return true; // all non-bomb cells are opened, and all bomb cells are flagged
-    }
+    friend class Minesweeper;
 };
 
 class Minesweeper {
@@ -341,10 +264,96 @@ public:
             break;
         }
     }
+
+    void generateBombs(int clickedRow, int clickedCol) {
+		int bombsToAdd = board.bombs;
+		srand(static_cast<unsigned>(time(nullptr))); // Seed the random number generator
+        while (bombsToAdd > 0) {
+			int row = rand() % board.rows;
+			int column = rand() % board.columns;
+
+            if (!board.cells[row][column]->isBomb() &&
+                !(abs(row - clickedRow) <= 1 && abs(column - clickedCol) <= 1)) {
+                board.cells[row][column]->setBomb();
+				bombsToAdd--;
+			}
+		}
+	}
+
+    void openCells(int row, int col, RenderWindow& window) {
+        if (row < 0 || col < 0 || row >= board.rows || col >= board.columns) {
+			return;
+		}
+
+		Cell& cell = *(board.cells[row][col]);
+        if (cell.isOpen() || cell.isFlagged()) {
+			return;
+		}
+
+		cell.open(window);
+
+        if (board.firstMove) {
+            board.firstMove = false;
+            generateBombs(row, col);
+            calculateNghbBombs();
+        }
+
+        if (board.checkWinCondition()) {
+			return;
+		}
+
+		// if the cell has no neighboring bombs, recursively open adjacent neighbors
+        if (cell.getNeighborBombs() == 0) {
+            for (int k = row - 1; k <= row + 1; ++k) {
+                for (int l = col - 1; l <= col + 1; ++l) {
+                    if ((k != row || l != col) && k >= 0 && l >= 0 && k < board.rows && l < board.columns) {
+						openCells(k, l, window);
+					}
+				}
+			}
+		}
+	}
+
+    int calculateNghbBombs() {
+		int bombs = 0;
+        for (int i = 0; i < board.rows; ++i) {
+            for (int j = 0; j < board.columns; ++j) {
+                if (!board.cells[i][j]->isBomb()) {
+					int bombs = 0;
+                    for (int k = i - 1; k <= i + 1; ++k) {
+                        for (int l = j - 1; l <= j + 1; ++l) {
+                            if (k >= 0 && k < board.rows && l >= 0 && l < board.columns) {
+                                if (board.cells[k][l]->isBomb()) {
+									bombs++;
+								}
+							}
+						}
+					}
+                    board.cells[i][j]->setNeighborBombs(bombs);
+				}
+			}
+		}
+		return bombs;
+	}
+
+    bool checkWinCondition() {
+        return board.checkWinCondition();
+    }
+
+    int getBoardRows() const {
+		return board.rows;
+	}
+
+    int getBoardColumns() const {
+		return board.columns;
+	}
+
+    Cell& getCell(int row, int column) const {
+        return *(board.cells[row][column]);
+    }
 };
 
 class Renderer {   
-    Board& board;
     RenderWindow window;
     Minesweeper& game;
     Font font;
@@ -371,8 +380,8 @@ class Renderer {
 
     void updateWindowSize() {
         
-        int windowWidth = board.getColumns() * CELL_SIZE;
-        int windowHeight = board.getRows() * CELL_SIZE + ADDITIONAL_SPACE;
+        int windowWidth = game.getBoardColumns() * CELL_SIZE;
+        int windowHeight = game.getBoardRows() * CELL_SIZE + ADDITIONAL_SPACE;
         window.setSize(Vector2u(windowWidth, windowHeight));
         window.setView(View(FloatRect(0, 0, windowWidth, windowHeight)));
         restartGame();
@@ -399,7 +408,7 @@ class Renderer {
                 int y = event.mouseButton.y - ADDITIONAL_SPACE;
 
                 FloatRect bobBounds(
-                    board.getColumns() * CELL_SIZE / 2 - 30,
+                    game.getBoardColumns() * CELL_SIZE / 2 - 30,
                     (ADDITIONAL_SPACE - 60) / 2,
                     60, 60);
 
@@ -409,11 +418,11 @@ class Renderer {
                     return;
                 }
 
-                if (LOST || board.checkWinCondition() || dropdownOpen) return;
+                if (LOST || game.checkWinCondition() || dropdownOpen) return;
 
                 // ensure the click is within the board boundaries
-                if (x >= 0 && x < board.getColumns() * CELL_SIZE &&
-                    y >= 0 && y < board.getRows() * CELL_SIZE + ADDITIONAL_SPACE) {
+                if (x >= 0 && x < game.getBoardColumns() * CELL_SIZE &&
+                    y >= 0 && y < game.getBoardRows() * CELL_SIZE + ADDITIONAL_SPACE) {
                     row = y / CELL_SIZE;
                     col = x / CELL_SIZE;
 
@@ -464,16 +473,16 @@ class Renderer {
     void handleOnRelease(Mouse::Button& button) {
         if (button == Mouse::Left) {
             carefulMode = false;
-            if (row >= 0 && col >= 0 && row < board.getRows() && col < board.getColumns() &&
-                !board.getCell(row, col).isFlagged()) {
+            if (row >= 0 && col >= 0 && row < game.getBoardRows() && col < game.getBoardColumns() &&
+                !game.getCell(row, col).isFlagged()) {
                 // Open the cell and its neighbors
-                board.openCells(row, col, window);
+                game.openCells(row, col, window);
             }
         }
         else if (button == Mouse::Right) {
             suspiciousMode = false;
-            if (row >= 0 && col >= 0 && row < board.getRows() && col < board.getColumns()) {
-                board.getCell(row, col).toggleFlag();
+            if (row >= 0 && col >= 0 && row < game.getBoardRows() && col < game.getBoardColumns()) {
+                game.getCell(row, col).toggleFlag();
             }
         }
     }
@@ -546,11 +555,11 @@ class Renderer {
         drawCells();
 
         if (LOST) {
-            for (int i = 0; i < board.getRows(); ++i) {
-                for (int j = 0; j < board.getColumns(); ++j) {
-
-                    if (board.getCell(i, j).isBomb() && !board.getCell(i, j).isFlagged()) {
-                        board.getCell(i, j).drawBomb(window);
+            for (int i = 0; i < game.getBoardRows(); ++i) {
+                for (int j = 0; j < game.getBoardColumns(); ++j) {
+                    Cell& cell = game.getCell(i, j);
+                    if (cell.isBomb() && !cell.isFlagged()) {
+                        cell.drawBomb(window);
                     }
                 }
             }
@@ -558,7 +567,7 @@ class Renderer {
             drawMessage("You Lost", Color::Red);
         }
 
-        if (board.checkWinCondition()) {
+        if (game.checkWinCondition()) {
 			drawMessage("You Won", Color::Green);
 		}
 
@@ -568,10 +577,10 @@ class Renderer {
     }
 
     void drawCells() {
-        for (int i = 0; i < board.getRows(); ++i) {
-            for (int j = 0; j < board.getColumns(); ++j) {
+        for (int i = 0; i < game.getBoardRows(); ++i) {
+            for (int j = 0; j < game.getBoardColumns(); ++j) {
 
-                Cell cell = board.getCell(i, j);
+                Cell& cell = game.getCell(i, j);
                 cell.draw(window); // initial draw (all closed)
 
                 // depending on the state of the cell, draw the appropriate icon
@@ -609,7 +618,7 @@ class Renderer {
         if (LOST) {
             smiley_texture.loadFromFile("icons/loser.png");
         }
-        else if (board.checkWinCondition()) {
+        else if (game.checkWinCondition()) {
 			smiley_texture.loadFromFile("icons/winner.png");
 		}
         else if (suspiciousMode) {
@@ -626,7 +635,7 @@ class Renderer {
         bob.setTextureRect(IntRect(0, 0, 60, 60));
         float smiley_size = 60;
         float dif = (ADDITIONAL_SPACE - smiley_size) / 2;
-        bob.setPosition(board.getColumns() * CELL_SIZE / 2 - smiley_size / 2, dif);
+        bob.setPosition(game.getBoardColumns() * CELL_SIZE / 2 - smiley_size / 2, dif);
         window.draw(bob);
     }
 
@@ -652,7 +661,6 @@ class Renderer {
     void restartGame() {
         window.clear();
         game.resetBoard();
-        board = game.getBoard();
         LOST = false; 
         suspiciousMode = false;
         carefulMode = false;
@@ -664,9 +672,9 @@ class Renderer {
     }
 
 public:
-    Renderer(Minesweeper& m) : game(m), board(m.getBoard()) {
-        int windowWidth = board.getColumns() * CELL_SIZE;
-        int windowHeight = board.getRows() * CELL_SIZE + ADDITIONAL_SPACE;
+    Renderer(Minesweeper& m) : game(m) {
+        int windowWidth = game.getBoardColumns() * CELL_SIZE;
+        int windowHeight = game.getBoardRows() * CELL_SIZE + ADDITIONAL_SPACE;
 
         window.create(VideoMode(windowWidth, windowHeight), "Minesweeper");
         window.setFramerateLimit(60);
