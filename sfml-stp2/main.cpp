@@ -242,10 +242,6 @@ class Minesweeper {
 
 public:
     Minesweeper(): board(8, 8, 10), level(Level::easy) {};
-    
-    Board& getBoard() {
-		return this->board;
-	}
 
     void resetBoard() {
         board.reset();  // Call the reset method of the Board
@@ -351,6 +347,14 @@ public:
     Cell& getCell(int row, int column) const {
         return *(board.cells[row][column]);
     }
+
+    void flagCell(int row, int column) {
+		board.cells[row][column]->toggleFlag();
+	}
+
+    bool isFlagged(int row, int column) {
+        return board.cells[row][column]->isFlagged();
+    }
 };
 
 class Renderer {   
@@ -370,7 +374,6 @@ class Renderer {
     bool firstClick = true;
     bool gameOver = false;
     bool dropdownOpen = false;
-
 
     void loadFont() {
         if (!font.loadFromFile("font/Montserrat-Bold.ttf")) {
@@ -474,7 +477,7 @@ class Renderer {
         if (button == Mouse::Left) {
             carefulMode = false;
             if (row >= 0 && col >= 0 && row < game.getBoardRows() && col < game.getBoardColumns() &&
-                !game.getCell(row, col).isFlagged()) {
+                !game.isFlagged(row, col)) {
                 // Open the cell and its neighbors
                 game.openCells(row, col, window);
             }
@@ -482,7 +485,7 @@ class Renderer {
         else if (button == Mouse::Right) {
             suspiciousMode = false;
             if (row >= 0 && col >= 0 && row < game.getBoardRows() && col < game.getBoardColumns()) {
-                game.getCell(row, col).toggleFlag();
+                game.flagCell(row, col);
             }
         }
     }
