@@ -194,8 +194,8 @@ class Board {
     bool firstMove = true;
     
     bool checkWinCondition() const {
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < columns; ++j) {
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
                 const Cell& cell = *(cells[i][j]);
                 if ((!cell.isOpen() && !cell.isBomb()) || (cell.isBomb() && !cell.isFlagged())) {
                     return false; // a non-bomb cell is closed or a bomb cell isn't flagged, game is not won
@@ -226,8 +226,8 @@ public:
         REMAINING_BOMBS = bombs;
         cells = vector<vector<Cell*>>(rows, vector<Cell*>(columns));
 
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < columns; ++j) {
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
                 cells[i][j] = new Cell(i, j);
             }
         }
@@ -312,8 +312,8 @@ public:
 
     int calculateNghbBombs() {
 		int bombs = 0;
-        for (int i = 0; i < board.rows; ++i) {
-            for (int j = 0; j < board.columns; ++j) {
+        for (int i = 0; i < board.rows; i++) {
+            for (int j = 0; j < board.columns; j++) {
                 if (!board.cells[i][j]->isBomb()) {
 					int bombs = 0;
                     for (int k = i - 1; k <= i + 1; ++k) {
@@ -425,7 +425,7 @@ class Renderer {
 
                 // ensure the click is within the board boundaries
                 if (x >= 0 && x < game.getBoardColumns() * CELL_SIZE &&
-                    y >= 0 && y < game.getBoardRows() * CELL_SIZE + ADDITIONAL_SPACE) {
+                    y >= 0 && y < game.getBoardRows() * CELL_SIZE) {
                     row = y / CELL_SIZE;
                     col = x / CELL_SIZE;
 
@@ -461,7 +461,7 @@ class Renderer {
             dropdownOpen = !dropdownOpen;
         }
         else if (dropdownOpen) {
-            for (int i = 0; i < dropdownRects.size(); ++i) {
+            for (int i = 0; i < dropdownRects.size(); i++) {
                 if (dropdownRects[i].getGlobalBounds().contains(mousePos)) {
                     game.setLevel(levels[i].second);
                     dropdownOpen = false;
@@ -531,7 +531,7 @@ class Renderer {
         dropdown.setOutlineThickness(1);
 
         // level texts
-        for (int i = 0; i < levels.size(); ++i) {
+        for (int i = 0; i < levels.size(); i++) {
             Text text(levels[i].first, font, 20);
             text.setPosition(12, 40 + i * 30);
             text.setFillColor(Color::Black);
@@ -558,8 +558,8 @@ class Renderer {
         drawCells();
 
         if (LOST) {
-            for (int i = 0; i < game.getBoardRows(); ++i) {
-                for (int j = 0; j < game.getBoardColumns(); ++j) {
+            for (int i = 0; i < game.getBoardRows(); i++) {
+                for (int j = 0; j < game.getBoardColumns(); j++) {
                     Cell& cell = game.getCell(i, j);
                     if (cell.isBomb() && !cell.isFlagged()) {
                         cell.drawBomb(window);
@@ -580,8 +580,8 @@ class Renderer {
     }
 
     void drawCells() {
-        for (int i = 0; i < game.getBoardRows(); ++i) {
-            for (int j = 0; j < game.getBoardColumns(); ++j) {
+        for (int i = 0; i < game.getBoardRows(); i++) {
+            for (int j = 0; j < game.getBoardColumns(); j++) {
 
                 Cell& cell = game.getCell(i, j);
                 cell.draw(window); // initial draw (all closed)
